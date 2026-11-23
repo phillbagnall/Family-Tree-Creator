@@ -4,7 +4,7 @@ import * as sync from './sync.js';
 import * as M from './model.js';
 import { h, openSheet, closeSheet, toast, timeAgo } from './ui.js';
 
-export const APP_VERSION = 'v6'; // keep in step with VERSION in sw.js
+import { APP_VERSION } from './version.js';
 
 const SENT = 'ftc.feedbackSent';
 const KINDS = [

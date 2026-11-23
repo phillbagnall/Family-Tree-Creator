@@ -2,7 +2,7 @@
 // syncs with GitHub separately; requests to GitHub are never cached here.
 // Bump VERSION whenever app files change so devices pick up the update.
 
-const VERSION = 'v6';
+const VERSION = 'v7'; // keep in step with js/version.js
 const CACHE = `ftc-${VERSION}`;
 const FILES = [
   './',
@@ -10,7 +10,7 @@ const FILES = [
   'css/app.css',
   'js/app.js', 'js/auth.js', 'js/editor.js', 'js/export.js', 'js/github.js',
   'js/layout.js', 'js/model.js', 'js/render.js', 'js/store.js', 'js/sync.js', 'js/theme.js',
-  'js/ui.js', 'js/viewport.js', 'js/cropper.js', 'js/feedback.js',
+  'js/ui.js', 'js/viewport.js', 'js/cropper.js', 'js/feedback.js', 'js/version.js',
   'vendor/jspdf.umd.min.js',
   'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
@@ -32,8 +32,10 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
+  // 'no-cache' asks the server whether files changed, so updates arrive straight away.
+  const fresh = e.request.mode === 'navigate' ? fetch(e.request.url, { cache: 'no-cache' }) : fetch(e.request, { cache: 'no-cache' });
   e.respondWith(
-    fetch(e.request)
+    fresh
       .then((res) => {
         if (res.ok) {
           const copy = res.clone();

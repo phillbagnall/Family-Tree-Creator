@@ -7,7 +7,7 @@ blocked: false
 links: [https://github.com/phillbagnall/Family-Tree-Creator, https://phillbagnall.github.io/Family-Tree-Creator/]
 ---
 ## Summary
-A web app (installable on PC, iPhone and Android) for building family trees of characters in books, made for Phill's step-daughter. Trees are vector-drawn so zoom stays sharp, with photos, dates, notes, groups/houses, custom links, search, spoiler protection, PNG/PDF/SVG export, colour themes with gradient backgrounds (per tree, plus a usual look that syncs across devices), photo cropping, snap-to-grid layout, adding both parents in one step, gender per character, an in-app "Suggest an improvement" form (arrives as GitHub issues) and offline use. Each tree syncs to the private GitHub repo phillbagnall/family-trees, so the same trees appear on every device. First version is live; next is setting up her devices and trying it with a real book.
+A web app (installable on PC, iPhone and Android) for building family trees of characters in books, made for Phill's step-daughter. Trees are vector-drawn so zoom stays sharp, with photos, dates, notes, groups/houses, custom links, search, spoiler protection, PNG/PDF/SVG export, colour themes with gradient backgrounds (per tree, plus a usual look that syncs across devices), photo cropping, snap-to-grid layout, adding both parents in one step, gender per character, an in-app "Suggest an improvement" form (arrives as GitHub issues), box selection to move whole branches, a refresh button that syncs and applies app updates, and offline use. Each tree syncs to the private GitHub repo phillbagnall/family-trees, so the same trees appear on every device. First version is live; next is setting up her devices and trying it with a real book.
 
 ## Next steps
 - [ ] Create a fine-grained GitHub access key for phillbagnall/family-trees (Contents: read and write)
@@ -48,6 +48,10 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
 - 2026-11-24: Gender choice in the character panel (female, male, unknown, other with custom text)
   - Build: v6 (sw.js VERSION v6) — gender, suggestions
   - ![Gender choice on a phone](docs/visuals/2026-11-24-gender.jpg)
+- 2026-11-24: Box select / "select this branch" to move a whole branch; refresh button (⟳) in the top bar
+  - Build: v7 (sw.js VERSION v7) — refresh, box select
+  - ![Branch moved as a group](docs/visuals/2026-11-24-branch-moved.jpg)
+  - ![Box selection on a phone](docs/visuals/2026-11-24-box-select-phone.jpg)
 
 ## Decisions
 - 2026-11-23: Web app (PWA) rather than native apps, so one codebase covers PC, iPhone and Android with no app-store costs
@@ -58,6 +62,7 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
 - 2026-11-23: Usual look syncs via settings.json (newest edit wins); light/dark mode stays per device because it usually follows each device's own setting
 - 2026-11-24: Grid is 24px; cards are 9x3 grid squares and the automatic layout also sits on the grid; snapping can be switched off per tree
 - 2026-11-24: Suggestions travel as files in the data repo (her key already allows that) and an Action turns them into issues, so no extra key permissions or server are needed
+- 2026-11-24: Refresh compares js/version.js with the running version and reloads only when there is an update (view and open tree are kept); the service worker now revalidates files so updates are never stale
 
 ## Log
 - 2026-11-23: Added to the project dashboard
@@ -67,3 +72,4 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
 - 2026-11-23: Usual look now syncs across devices
 - 2026-11-24: Snap-to-grid (grid now pans/zooms with the tree) and add-both-parents dialog; partners of one person now stay grouped in the layout
 - 2026-11-24: Added gender field and in-app suggestions that arrive as GitHub issues; tested end to end
+- 2026-11-24: Added refresh button (sync + app update) and box selection / branch moving

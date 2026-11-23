@@ -312,6 +312,15 @@ export function openPerson(app, id) {
     // Relationships
     kids.push(relationships(app, id, build));
 
+    kids.push(h('div', { class: 'sec' }, h('h3', {}, 'Move'),
+      h('button', { class: 'btn', type: 'button', onclick: () => {
+        const ids = [...M.branchOf(doc, id)].filter((x) => app.lay.pos[x]);
+        closeSheet(true);
+        app.selectMany(ids);
+        toast(ids.length > 1 ? `${ids.length} characters selected. Drag any of them to move the branch.` : 'Selected. Drag to move.', 4000);
+      } }, `Select ${p.name || 'them'} and their descendants`),
+      h('p', { class: 'hint' }, 'Picks them, their partners and everyone descended from them, so you can drag the whole branch somewhere else.')));
+
     kids.push(h('div', { class: 'sec danger-zone' },
       h('button', { class: 'btn danger', type: 'button', onclick: async () => {
         if (!(await confirmBox(`Delete ${p.name || 'this character'}?`, 'They will be removed from the tree along with their family links.', 'Delete', true))) return;

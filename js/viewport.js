@@ -11,6 +11,7 @@ export class Viewport {
     this.pointers = new Map();
     this.gesture = null;
     this.minK = 0.08;
+    this.selectMode = false; // when on, dragging on empty space draws a selection box
     this.maxK = 6;
 
     svg.addEventListener('pointerdown', (e) => this.down(e));
@@ -128,9 +129,10 @@ export class Viewport {
     if (this.pointers.size === 1) {
       const card = e.target.closest && e.target.closest('[data-id]');
       const p = this.local(e);
-      this.gesture = { type: 'press', id: card ? card.dataset.id : null, start: p, last: p, t: performance.now(), moved: false };
+      this.gesture = { type: 'press', id: card ? card.dataset.id : null, start: p, last: p, t: performance.now(), moved: false, shift: e.shiftKey };
     } else if (this.pointers.size === 2) {
       if (this.gesture && this.gesture.type === 'drag') this.h.dragEnd(this.gesture.id);
+      if (this.gesture && this.gesture.type === 'box') this.h.boxCancel();
       const [a, b] = [...this.pointers.values()];
       this.gesture = { type: 'pinch', dist: Math.hypot(a.x - b.x, a.y - b.y), k: this.t.k, mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };
     }
@@ -159,6 +161,8 @@ export class Viewport {
       if (g.id) {
         g.type = 'drag';
         this.h.dragStart(g.id);
+      } else if (this.selectMode || g.shift) {
+        g.type = 'box';
       } else g.type = 'pan';
     }
     if (g.type === 'pan') {
@@ -167,6 +171,8 @@ export class Viewport {
       this.apply();
     } else if (g.type === 'drag') {
       this.h.drag(g.id, (p.x - g.start.x) / this.t.k, (p.y - g.start.y) / this.t.k);
+    } else if (g.type === 'box') {
+      this.h.box(g.start, p);
     }
     g.last = p;
   }
@@ -178,6 +184,9 @@ export class Viewport {
     if (this.pointers.size === 0) {
       if (g && g.type === 'press' && !cancelled) this.h.tap(g.id);
       if (g && g.type === 'drag') this.h.dragEnd(g.id);
+      if (g && g.type === 'box') {
+        if (cancelled) this.h.boxCancel(); else this.h.boxEnd(g.start, g.last, g.shift);
+      }
       this.gesture = null;
     } else if (g && g.type === 'pinch') {
       // One finger left: carry on panning from where it is.

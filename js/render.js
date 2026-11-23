@@ -95,7 +95,7 @@ function linkPath(l, a, b) {
 
 // Returns SVG markup (without the outer <svg>) for the whole tree.
 // opts.photo(id) -> href string or null
-export function treeMarkup({ doc, view, lay, selected, matches, colours = LIGHT, photo }) {
+export function treeMarkup({ doc, view, lay, selected, multi, matches, colours = LIGHT, photo }) {
   const c = colours;
   const pos = lay.pos;
   const groups = doc.groups;
@@ -124,7 +124,7 @@ export function treeMarkup({ doc, view, lay, selected, matches, colours = LIGHT,
     const p = view.people[id];
     const { x, y } = pos[id];
     const gx = x - CARD_W / 2, gy = y - CARD_H / 2;
-    const sel = selected === id;
+    const sel = selected === id || (multi && multi.has(id));
     const pg = (p.groups || []).map((g) => groups[g]).filter((g) => g && !g.deleted);
     let stripes = '';
     pg.slice(0, 3).forEach((g, i) => {

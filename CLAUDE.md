@@ -72,4 +72,4 @@ Each one is saved as `feedback/<id>.json` in the private data repo `phillbagnall
 
 ## Releasing changes
 
-- Bump `VERSION` in `sw.js` and `APP_VERSION` in `js/feedback.js` together for each release, so installed copies update.
+- Bump `VERSION` in `sw.js` and `APP_VERSION` in `js/version.js` together for each release, so installed copies update.

@@ -343,3 +343,18 @@ dialog::backdrop { background: rgba(10, 20, 40, 0.35); }
 .crop-canvas:active { cursor: grabbing; }
 .crop-zoom { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 300px; font-size: 20px; color: var(--muted); }
 .crop-zoom input { flex: 1; min-height: 0; padding: 0; border: none; accent-color: var(--accent); box-shadow: none; }
+
+/* ---------- refresh + selecting several characters ---------- */
+[data-refresh] { position: relative; }
+[data-refresh].spinning svg { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+[data-refresh][data-update]::after { content: ''; position: absolute; width: 9px; height: 9px; border-radius: 50%; background: var(--danger); transform: translate(10px, -10px); }
+#selectMode[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+#marquee { fill: var(--accent); fill-opacity: 0.12; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 6 4; pointer-events: none; }
+#canvas.selecting { cursor: crosshair; }
+.select-bar {
+  position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(22px + var(--safe-b)); z-index: 5;
+  display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+  padding: 6px 6px 6px 16px; box-shadow: var(--shadow); font-size: 14px; font-weight: 600; white-space: nowrap; max-width: calc(100vw - 170px);
+}
+.select-bar span { overflow: hidden; text-overflow: ellipsis; }

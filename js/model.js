@@ -361,6 +361,20 @@ export function clearPositions(doc) {
   for (const id of Object.keys(doc.positions)) doc.positions[id] = { deleted: true, updatedAt: t };
 }
 
+// Someone plus everyone descended from them, with all their partners: a "branch".
+export function branchOf(doc, id) {
+  const set = new Set([id]);
+  const queue = [id];
+  while (queue.length) {
+    const p = queue.shift();
+    for (const u of unionsOf(doc, p)) {
+      for (const q of u.partners) set.add(q);
+      for (const c of u.children) if (!set.has(c.id)) { set.add(c.id); queue.push(c.id); }
+    }
+  }
+  return set;
+}
+
 export function imagesUsed(doc) {
   return new Set(live(doc.people).flatMap((p) => [p.photo, p.photoSrc]).filter(Boolean));
 }
