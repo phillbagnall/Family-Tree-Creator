@@ -124,11 +124,10 @@ export async function addParentsFlow(app, childId) {
   };
   const a = single ? null : slot('Parent', 'Name, e.g. Molly Weasley');
   const b = slot(single ? `Other parent (with ${M.personName(doc, single.partners[0])})` : 'Other parent (optional)', 'Name');
-  const type = h('select', {}, opts(M.UNION_TYPES, 'married'));
-  const status = h('select', {}, opts(M.UNION_STATUS, 'together'));
+  const rel = h('select', {}, opts(M.RELATIONSHIP_OPTIONS, 'married'));
   const kind = h('select', {}, opts(M.CHILD_KINDS.map(([v, l]) => [v, l === 'Birth' ? 'Birth child' : `${l} child`]), 'birth'));
   const body = h('div', { class: 'sec' }, list, a && a.el, b.el,
-    h('div', { class: 'row2' }, h('label', {}, 'The parents are', type), h('label', {}, 'Status', status)),
+    h('label', {}, 'The two parents are', rel),
     h('label', {}, `${nm} is their`, kind));
   setTimeout(() => (a || b).input.focus(), 60);
   const r = await modal({ title: `Parents of ${nm}`, body, buttons: [{ label: 'Cancel', value: '' }, { label: 'Add', value: 'ok', primary: true }] });
@@ -153,9 +152,7 @@ export async function addParentsFlow(app, childId) {
     u = M.linkChild(doc, pA || pB, childId, null, kind.value);
   }
   if (u) {
-    const patch = { status: status.value };
-    if (u.partners.length === 2) patch.type = type.value;
-    M.updateUnion(doc, u.id, patch);
+    if (u.partners.length === 2) M.setRelationship(doc, u.id, rel.value);
     M.setChildKind(doc, u.id, childId, kind.value);
   }
   app.commit();
@@ -393,8 +390,7 @@ function relationships(app, id, rebuild) {
     box.append(h('div', { class: 'rel' },
       h('div', { class: 'rel-head' }, face(app, other), who(app, other, u.children.length ? `${u.children.length} child${u.children.length > 1 ? 'ren' : ''} together` : null)),
       h('div', { class: 'rel-opts' },
-        h('select', { 'aria-label': 'Relationship', onchange: (e) => upd({ type: e.target.value }) }, opts(M.UNION_TYPES, u.type)),
-        h('select', { 'aria-label': 'Status', onchange: (e) => upd({ status: e.target.value }) }, opts(M.UNION_STATUS, u.status))),
+        h('select', { 'aria-label': 'Relationship', onchange: (e) => { M.setRelationship(doc, u.id, e.target.value); app.commit(); } }, opts(M.RELATIONSHIP_OPTIONS, M.relationshipOf(u)))),
       h('div', { class: 'rel-opts' },
         h('input', { placeholder: 'From (date)', value: u.start || '', oninput: (e) => upd({ start: e.target.value }) }),
         h('input', { placeholder: 'To (date)', value: u.end || '', oninput: (e) => upd({ end: e.target.value }) }),

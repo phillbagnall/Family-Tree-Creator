@@ -120,7 +120,9 @@ async function capitaliseOldNames() {
   let changed = false;
   for (const rec of await store.allTrees()) {
     if (app.doc && app.doc.id === rec.id) continue; // the open tree is handled in openTree
-    if (M.capitaliseAllNames(rec.doc)) { await sync.saveLocal(rec.doc); changed = true; }
+    const a = M.capitaliseAllNames(rec.doc);
+    const b = M.mergeDuplicateCouples(rec.doc);
+    if (a || b) { await sync.saveLocal(rec.doc); changed = true; }
   }
   if (changed) { sync.syncAll(); if (!$('library').hidden) renderLibrary(); }
 }
@@ -584,7 +586,9 @@ async function openTree(id) {
   if (!rec) return;
   app.doc = M.normalise(rec.doc);
   applyTreeLook();
-  if (M.capitaliseAllNames(app.doc)) sync.saveLocal(app.doc);
+  const fixedNames = M.capitaliseAllNames(app.doc);
+  const fixedCouples = M.mergeDuplicateCouples(app.doc);
+  if (fixedNames || fixedCouples) sync.saveLocal(app.doc);
   app.vp.selectMode = false;
   app.multi.clear();
   $('selectMode').setAttribute('aria-pressed', 'false');

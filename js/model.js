@@ -21,6 +21,37 @@ export const UNION_STATUS = [
   ['separated', 'Separated'],
   ['widowed', 'Widowed'],
 ];
+// What she chooses: one option, each meaning one clear thing. Stored as type + status
+// (type decides the line style, status adds the divorce/separation marks).
+export const RELATIONSHIPS = [
+  { key: 'married', label: 'Married', type: 'married', status: 'together' },
+  { key: 'partners', label: 'Partners', type: 'partners', status: 'together' },
+  { key: 'engaged', label: 'Engaged', type: 'engaged', status: 'together' },
+  { key: 'separated', label: 'Married, but separated', type: 'married', status: 'separated' },
+  { key: 'divorced', label: 'Divorced', type: 'married', status: 'divorced' },
+  { key: 'widowed', label: 'Widowed (one of them died)', type: 'married', status: 'widowed' },
+  { key: 'splitup', label: 'Were partners, split up', type: 'partners', status: 'separated' },
+  { key: 'affair', label: 'Affair', type: 'affair', status: 'together' },
+  { key: 'unknown', label: 'Not known', type: 'unknown', status: 'together' },
+];
+
+// The option that describes a couple (older trees may hold odd mixes, e.g. engaged + divorced).
+export function relationshipOf(u) {
+  const exact = RELATIONSHIPS.find((r) => r.type === u.type && r.status === (u.status || 'together'));
+  if (exact) return exact.key;
+  if (u.status === 'divorced') return 'divorced';
+  if (u.status === 'widowed') return 'widowed';
+  if (u.status === 'separated') return u.type === 'partners' ? 'splitup' : 'separated';
+  return RELATIONSHIPS.find((r) => r.type === u.type)?.key || 'unknown';
+}
+
+export function setRelationship(doc, unionId, key) {
+  const r = RELATIONSHIPS.find((x) => x.key === key);
+  if (r) updateUnion(doc, unionId, { type: r.type, status: r.status });
+}
+
+export const RELATIONSHIP_OPTIONS = RELATIONSHIPS.map((r) => [r.key, r.label]);
+
 export const CHILD_KINDS = [
   ['birth', 'Birth'],
   ['adopted', 'Adopted'],
@@ -41,6 +72,25 @@ export const GROUP_COLOURS = [
 // "rowan ashwood" -> "Rowan Ashwood". Only first letters change, so "McGonagall" stays as it is.
 export function capitaliseName(name) {
   return String(name || '').replace(/(^|[\s\-])(\p{Ll})/gu, (m, sep, ch) => sep + ch.toUpperCase());
+}
+
+// The same two people recorded as a couple more than once (e.g. added on two devices):
+// keep one, give it all the children, remove the rest. Returns true if anything changed.
+export function mergeDuplicateCouples(doc) {
+  const seen = new Map();
+  let changed = false;
+  const couples = live(doc.unions).filter((u) => u.partners.length === 2)
+    .sort((a, b) => b.children.length - a.children.length || (a.updatedAt || 0) - (b.updatedAt || 0));
+  for (const u of couples) {
+    const key = [...u.partners].sort().join('|');
+    const keep = seen.get(key);
+    if (!keep) { seen.set(key, u); continue; }
+    for (const c of u.children) if (!keep.children.some((k) => k.id === c.id)) keep.children.push(c);
+    touch(keep);
+    deleteUnion(doc, u.id);
+    changed = true;
+  }
+  return changed;
 }
 
 // Capitalise every name in a tree once (for names typed before auto-capitals existed).

@@ -74,6 +74,7 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
 - 2026-11-24: Refresh compares js/version.js with the running version and reloads only when there is an update (view and open tree are kept); the service worker now revalidates files so updates are never stale
 - 2026-11-24: Existing names are capitalised by the app itself (once per tree, flag meta.namesCapitalised) rather than by editing her repo directly, so it merges safely with edits on her devices
 - 2026-11-24: Centring is a final display step, not a change to the automatic spacing: changing the spacing would have shifted the 7 cards she has dragged out of line with the rest
+- 2026-11-24: Couples have one Relationship choice (Married, Partners, Engaged, Married but separated, Divorced, Widowed, Were partners split up, Affair, Not known) instead of separate type + status, so contradictory mixes can't be picked; duplicate couples are merged when a tree opens
 
 ## Log
 - 2026-11-23: Added to the project dashboard
@@ -87,3 +88,4 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
 - 2026-11-24: Auto-capitalised names (typing + one-off fix of existing names) and minimum spacing between family lines
 - 2026-11-24: Dropped cards keep at least one grid square from other cards; checked her real Warrior Cats tree lays out with no cards closer than that
 - 2026-11-24: Exact centring of children (and married-in partners) when nearly centred; verified on her real tree
+- 2026-11-24: Single Relationship choice for couples; duplicate couples (Princess + Oliver x3 in her tree) merged automatically
