@@ -272,25 +272,61 @@ export function layout(view, offsets = {}, { snap = true } = {}) {
     }
   }
 
-  // Give overlapping child "buses" in the same row different heights so families don't merge.
+  // Where each line enters a child's card: normally the middle of its top edge, but if
+  // another family's line comes down close by, slide it along the card so lines from
+  // different families stay at least LINE_GAP apart.
+  const LINE_GAP = 48; // two grid squares
+  const childX = {};
+  const bandOf = (u) => Math.round(Math.min(...u.children.map((c) => pos[c.id].y)) - CARD_H / 2);
+  const bands = new Map(); // gap above a row -> vertical lines in it [{u, x}]
+  for (const u of view.unions) {
+    if (!u.children.length) continue;
+    const k = bandOf(u);
+    if (!bands.has(k)) bands.set(k, []);
+    bands.get(k).push({ u: u.id, x: unionPts[u.id].x });
+  }
+  for (const u of view.unions) {
+    if (!u.children.length) continue;
+    const lines = bands.get(bandOf(u));
+    for (const c of u.children) {
+      const cx = pos[c.id].x;
+      const others = lines.filter((l) => l.u !== u.id);
+      const clear = (x) => others.every((l) => Math.abs(l.x - x) >= LINE_GAP);
+      let best = cx;
+      if (!clear(cx)) {
+        const near = others.reduce((m, l) => (Math.abs(l.x - cx) < Math.abs(m.x - cx) ? l : m));
+        const away = cx >= near.x ? 1 : -1;
+        const limit = CARD_W / 2 - 30;
+        for (let d = GRID / 2; d <= limit; d += GRID / 2) {
+          if (clear(cx + away * d)) { best = cx + away * d; break; }
+          if (clear(cx - away * d)) { best = cx - away * d; break; }
+        }
+      }
+      childX[`${u.id}:${c.id}`] = best;
+      lines.push({ u: u.id, x: best });
+    }
+  }
+
+  // Give overlapping (or nearly touching) child "buses" in the same gap different heights,
+  // spaced well apart, so families don't merge.
   const busY = {};
   const byRow = new Map();
   for (const u of view.unions) {
     if (!u.children.length) continue;
     const top = Math.min(...u.children.map((c) => pos[c.id].y)) - CARD_H / 2;
-    const xs = u.children.map((c) => pos[c.id].x).concat(unionPts[u.id].x);
+    const xs = u.children.map((c) => childX[`${u.id}:${c.id}`]).concat(unionPts[u.id].x);
     const key = Math.round(top);
     if (!byRow.has(key)) byRow.set(key, []);
-    byRow.get(key).push({ u, top, lo: Math.min(...xs) - 6, hi: Math.max(...xs) + 6 });
+    byRow.get(key).push({ u, top, lo: Math.min(...xs) - LINE_GAP / 2, hi: Math.max(...xs) + LINE_GAP / 2 });
   }
   for (const list of byRow.values()) {
-    list.sort((a, b) => a.lo - b.lo);
+    list.sort((p, q) => p.lo - q.lo);
     const levels = []; // right edge of last bus on each level
-    for (const b of list) {
-      let lv = levels.findIndex((r) => r < b.lo);
+    for (const bus of list) {
+      let lv = levels.findIndex((r) => r < bus.lo);
       if (lv < 0) { lv = levels.length; levels.push(0); }
-      levels[lv] = b.hi;
-      busY[b.u.id] = b.top - 24 - (lv % 4) * 14;
+      levels[lv] = bus.hi;
+      busY[bus.u.id] = bus.top - 22 - (lv % 3) * 22;
     }
   }
 
@@ -304,5 +340,5 @@ export function layout(view, offsets = {}, { snap = true } = {}) {
   for (const p of Object.values(unionPts)) { minY = Math.min(minY, p.y - 10); }
   const bounds = ids.length ? { x: minX, y: minY, w: maxX - minX, h: maxY - minY } : { x: -200, y: -100, w: 400, h: 200 };
 
-  return { pos, auto, unionPts, busY, gen, bounds };
+  return { pos, auto, unionPts, busY, childX, gen, bounds };
 }

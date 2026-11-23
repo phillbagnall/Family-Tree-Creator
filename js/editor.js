@@ -6,6 +6,7 @@ import { initials } from './render.js';
 import * as theme from './theme.js';
 import { cropPhoto } from './cropper.js';
 import { openFeedback } from './feedback.js';
+import { autoCapitalise } from './ui.js';
 import { $, h, icon, openSheet, closeSheet, modal, confirmBox, askText, toast, pickFile, resizeImage } from './ui.js';
 
 const opts = (pairs, cur) => pairs.map(([v, l]) => h('option', { value: v, selected: v === cur }, l));
@@ -25,6 +26,7 @@ const who = (app, id, small) =>
 function field(label, value, onInput, attrs = {}) {
   const inp = h(attrs.multiline ? 'textarea' : 'input', { value: value || '', placeholder: attrs.placeholder || '', class: attrs.class, rows: attrs.rows, oninput: (e) => onInput(e.target.value) });
   if (attrs.multiline) inp.value = value || '';
+  if (attrs.capitalise) autoCapitalise(inp);
   return label ? h('label', {}, label, inp) : inp;
 }
 
@@ -48,7 +50,7 @@ function revealPicker(app, entity, onChange) {
 // Ask for a new or existing character. Resolves to a person id, or null.
 export async function choosePerson(app, { title, exclude = [] }) {
   const people = M.live(app.doc.people).filter((p) => !exclude.includes(p.id)).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  const nameInp = h('input', { placeholder: 'Name of new character', autocomplete: 'off' });
+  const nameInp = autoCapitalise(h('input', { placeholder: 'Name of new character', autocomplete: 'off' }));
   let chosen = null;
   const list = h('div', { class: 'picker-list' });
   const filter = h('input', { type: 'search', placeholder: 'Search existing characters', autocomplete: 'off' });
@@ -67,7 +69,7 @@ export async function choosePerson(app, { title, exclude = [] }) {
   if (!r) return null;
   if (r.button === 'pick') return chosen;
   const name = nameInp.value.trim();
-  return M.addPerson(app.doc, { name: name || 'New character' }).id;
+  return M.addPerson(app.doc, { name: M.capitaliseName(name) || 'New character' }).id;
 }
 
 async function chooseOne(title, text, choices) {
@@ -114,10 +116,10 @@ export async function addParentsFlow(app, childId) {
   const list = h('datalist', { id: listId }, people.map((p) => h('option', { value: p.name })));
   const slot = (label, placeholder) => {
     const hint = h('span', { class: 'hint' });
-    const input = h('input', { list: listId, placeholder, autocomplete: 'off', oninput: () => {
+    const input = autoCapitalise(h('input', { list: listId, placeholder, autocomplete: 'off', oninput: () => {
       const v = input.value.trim();
       hint.textContent = !v ? '' : byName(v) ? '✓ Already in the tree: will be linked' : '+ New character';
-    } });
+    } }));
     return { input, el: h('label', {}, label, input, hint) };
   };
   const a = single ? null : slot('Parent', 'Name, e.g. Molly Weasley');
@@ -136,7 +138,7 @@ export async function addParentsFlow(app, childId) {
     name = name.trim();
     if (!name) return null;
     const found = byName(name);
-    return found ? found.id : M.addPerson(doc, { name }).id;
+    return found ? found.id : M.addPerson(doc, { name: M.capitaliseName(name) }).id;
   };
   const pA = single ? single.partners[0] : resolve(a.input.value);
   const pB = resolve(b.input.value);
@@ -243,7 +245,7 @@ export function openPerson(app, id) {
         toast(e.message || "Couldn't use that picture");
       }
     });
-    const nameInp = field(null, p.name, (v) => { save({ name: v }); $('sheetTitle').textContent = v || 'Unnamed'; }, { class: 'name-input', placeholder: 'Name' });
+    const nameInp = field(null, p.name, (v) => { save({ name: v }); $('sheetTitle').textContent = v || 'Unnamed'; }, { class: 'name-input', placeholder: 'Name', capitalise: true });
     const akaInp = field(null, p.aka, (v) => save({ aka: v }), { placeholder: 'Also known as / title' });
 
     const kids = [];

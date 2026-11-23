@@ -67,9 +67,9 @@ function partnerLine(u, a, b, c) {
   return parts.join('');
 }
 
-function childLines(u, pt, pos, c, preferredBus) {
+function childLines(u, pt, pos, c, preferredBus, childX) {
   if (!u.children.length) return '';
-  const tops = u.children.map((ch) => ({ ...ch, x: pos[ch.id].x, top: pos[ch.id].y - CARD_H / 2 }));
+  const tops = u.children.map((ch) => ({ ...ch, x: (childX && childX[`${u.id}:${ch.id}`]) ?? pos[ch.id].x, top: pos[ch.id].y - CARD_H / 2 }));
   let busY = preferredBus ?? Math.min(...tops.map((t) => t.top)) - 30;
   if (busY < pt.y + 12) busY = (pt.y + Math.min(...tops.map((t) => t.top))) / 2;
   const xs = tops.map((t) => t.x).concat(pt.x);
@@ -117,7 +117,7 @@ export function treeMarkup({ doc, view, lay, selected, multi, matches, colours =
   for (const u of view.unions) {
     const pt = lay.unionPts[u.id];
     if (u.partners.length === 2) mid += partnerLine(u, pos[u.partners[0]], pos[u.partners[1]], c);
-    mid += childLines(u, pt, pos, c, lay.busY && lay.busY[u.id]);
+    mid += childLines(u, pt, pos, c, lay.busY && lay.busY[u.id], lay.childX);
   }
 
   for (const id of Object.keys(view.people)) {

@@ -52,6 +52,9 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
   - Build: v7 (sw.js VERSION v7) — refresh, box select
   - ![Branch moved as a group](docs/visuals/2026-11-24-branch-moved.jpg)
   - ![Box selection on a phone](docs/visuals/2026-11-24-box-select-phone.jpg)
+- 2026-11-24: Lines from different families kept at least two grid squares apart; names auto-capitalised
+  - Build: v8 (sw.js VERSION v8) — line spacing, capitals
+  - ![Separated family lines](docs/visuals/2026-11-24-line-spacing.jpg)
 
 ## Decisions
 - 2026-11-23: Web app (PWA) rather than native apps, so one codebase covers PC, iPhone and Android with no app-store costs
@@ -63,6 +66,7 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
 - 2026-11-24: Grid is 24px; cards are 9x3 grid squares and the automatic layout also sits on the grid; snapping can be switched off per tree
 - 2026-11-24: Suggestions travel as files in the data repo (her key already allows that) and an Action turns them into issues, so no extra key permissions or server are needed
 - 2026-11-24: Refresh compares js/version.js with the running version and reloads only when there is an update (view and open tree are kept); the service worker now revalidates files so updates are never stale
+- 2026-11-24: Existing names are capitalised by the app itself (once per tree, flag meta.namesCapitalised) rather than by editing her repo directly, so it merges safely with edits on her devices
 
 ## Log
 - 2026-11-23: Added to the project dashboard
@@ -73,3 +77,4 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
 - 2026-11-24: Snap-to-grid (grid now pans/zooms with the tree) and add-both-parents dialog; partners of one person now stay grouped in the layout
 - 2026-11-24: Added gender field and in-app suggestions that arrive as GitHub issues; tested end to end
 - 2026-11-24: Added refresh button (sync + app update) and box selection / branch moving
+- 2026-11-24: Auto-capitalised names (typing + one-off fix of existing names) and minimum spacing between family lines

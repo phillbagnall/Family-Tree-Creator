@@ -36,6 +36,31 @@ export const icon = (name) => {
   return s;
 };
 
+// ---------- names ----------
+
+// Capital letter at the start of each word of a name, as she types. Only the letter just
+// typed is changed, so she can still go back and make one lower-case if she really wants.
+export function autoCapitalise(input) {
+  input.setAttribute('autocapitalize', 'words');
+  input.addEventListener('input', (e) => {
+    const v = input.value;
+    let next = v;
+    if (e.inputType === 'insertFromPaste' || e.inputType === 'insertReplacementText') {
+      next = v.replace(/(^|[\s\-])(\p{Ll})/gu, (m, sep, ch) => sep + ch.toUpperCase());
+    } else if (e.inputType === 'insertText' && e.data && e.data.length === 1) {
+      const i = input.selectionStart - 1;
+      const atWordStart = i === 0 || /[\s\-]/.test(v[i - 1]);
+      if (i >= 0 && atWordStart && /\p{Ll}/u.test(v[i])) next = v.slice(0, i) + v[i].toUpperCase() + v.slice(i + 1);
+    }
+    if (next !== v) {
+      const a = input.selectionStart, b = input.selectionEnd;
+      input.value = next;
+      input.setSelectionRange(a, b);
+    }
+  }, { capture: true });
+  return input;
+}
+
 // ---------- sheet ----------
 let sheetCleanup = null;
 

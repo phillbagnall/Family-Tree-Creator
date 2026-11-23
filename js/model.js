@@ -38,6 +38,22 @@ export const GROUP_COLOURS = [
   '#2f6aa8', '#5b4fa8', '#9a4a8f', '#6b5844', '#55606b',
 ];
 
+// "rowan ashwood" -> "Rowan Ashwood". Only first letters change, so "McGonagall" stays as it is.
+export function capitaliseName(name) {
+  return String(name || '').replace(/(^|[\s\-])(\p{Ll})/gu, (m, sep, ch) => sep + ch.toUpperCase());
+}
+
+// Capitalise every name in a tree once (for names typed before auto-capitals existed).
+export function capitaliseAllNames(doc) {
+  if (doc.meta.namesCapitalised) return false;
+  for (const p of live(doc.people)) {
+    const fixed = capitaliseName(p.name);
+    if (fixed !== p.name) updatePerson(doc, p.id, { name: fixed });
+  }
+  setMeta(doc, { namesCapitalised: true });
+  return true;
+}
+
 export function uid() {
   const a = new Uint8Array(8);
   crypto.getRandomValues(a);

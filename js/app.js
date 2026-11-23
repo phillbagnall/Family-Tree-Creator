@@ -111,8 +111,18 @@ async function connected({ token, repo }) {
   const wanted = (location.hash.match(/tree=(\w+)/) || [])[1];
   sync.start({ owner, repo: name, token });
   await showLibrary();
-  sync.syncAll();
+  sync.syncAll().then(capitaliseOldNames);
   if (wanted && (await store.getTree(wanted))) openTree(wanted);
+}
+
+// Names typed before auto-capitals existed get capitalised once per tree.
+async function capitaliseOldNames() {
+  let changed = false;
+  for (const rec of await store.allTrees()) {
+    if (app.doc && app.doc.id === rec.id) continue; // the open tree is handled in openTree
+    if (M.capitaliseAllNames(rec.doc)) { await sync.saveLocal(rec.doc); changed = true; }
+  }
+  if (changed) { sync.syncAll(); if (!$('library').hidden) renderLibrary(); }
 }
 
 // ---------------- library ----------------
@@ -543,6 +553,7 @@ async function openTree(id) {
   if (!rec) return;
   app.doc = M.normalise(rec.doc);
   applyTreeLook();
+  if (M.capitaliseAllNames(app.doc)) sync.saveLocal(app.doc);
   app.vp.selectMode = false;
   app.multi.clear();
   $('selectMode').setAttribute('aria-pressed', 'false');
