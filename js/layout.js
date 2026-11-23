@@ -257,6 +257,42 @@ export function layout(view, offsets = {}, { snap = true } = {}) {
     pos[id] = snap ? { x: snapX(px), y: snapY(py) } : { x: px, y: py };
   }
 
+  // Centre children exactly under their parents when they're nearly there (within two grid
+  // squares): this removes the small jog grid-snapping can leave, and catches children she
+  // dropped almost in the middle. Only done when it doesn't push anyone closer to another card.
+  // Families are handled from the top down, so grandchildren follow their (moved) parents.
+  const CENTRE_PULL = 2 * GRID;
+  const families = view.unions
+    .filter((u) => u.partners.length && u.children.length)
+    .sort((a, b) => Math.min(...a.partners.map((p) => pos[p].y)) - Math.min(...b.partners.map((p) => pos[p].y)));
+  const sideGap = (a, b) => Math.abs(a.x - b.x) - CARD_W;
+  const sameBand = (a, b) => Math.abs(a.y - b.y) < CARD_H + GRID;
+  for (const u of families) {
+    const kids = u.children.map((c) => c.id);
+    if (kids.some((k) => u.partners.includes(k))) continue;
+    const ux = u.partners.reduce((sum, p) => sum + pos[p].x, 0) / u.partners.length;
+    const xs = kids.map((k) => pos[k].x);
+    const d = ux - (Math.min(...xs) + Math.max(...xs)) / 2;
+    if (!d || Math.abs(d) > CENTRE_PULL) continue;
+    // Partners who married into the family (no parents of their own here) move with them.
+    const group = new Set(kids);
+    for (const k of kids) {
+      for (const q of partnersOf(k)) {
+        if (!parentU.get(q).length && !u.partners.includes(q) && Math.abs(pos[q].y - pos[k].y) < CARD_H) group.add(q);
+      }
+    }
+    const kidSet = group;
+    const ok = [...group].every((k) => {
+      const before = pos[k];
+      const after = { x: before.x + d, y: before.y };
+      return ids.every((o) => {
+        if (kidSet.has(o) || !sameBand(pos[o], after)) return true;
+        return sideGap(pos[o], after) >= Math.min(GRID, sideGap(pos[o], before));
+      });
+    });
+    if (ok) for (const k of group) pos[k] = { x: pos[k].x + d, y: pos[k].y };
+  }
+
   const unionPts = {};
   for (const u of view.unions) {
     if (u.partners.length === 2) {
