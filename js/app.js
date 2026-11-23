@@ -197,7 +197,7 @@ function openAppSettings() {
       modeSwitch(themeMode)),
     h('div', { class: 'sec' },
       h('h3', {}, 'My usual look'),
-      h('p', { class: 'hint' }, 'Used for the trees page and any tree without its own look. Each tree can have its own look in its settings.'),
+      h('p', { class: 'hint' }, 'Used for the trees page and any tree without its own look, on all your devices. Each tree can also have its own look in its settings.'),
       theme.lookEditor(theme.usualLook(), (look) => { theme.setUsualLook(look); theme.applyLook(look); })),
     h('div', { class: 'sec' },
       h('h3', {}, 'Security'),
@@ -283,6 +283,7 @@ async function disconnect() {
   sync.stop();
   auth.forget();
   await store.clearAll();
+  localStorage.removeItem('ftc.settings.sha');
   closeSheet();
   showSetup();
 }
@@ -306,6 +307,13 @@ for (const el of document.querySelectorAll('[data-sync]')) {
     else sync.syncAll();
   });
 }
+
+// Usual look edited here: send to GitHub. Arrived from another device: show it.
+theme.onUsualLookEdited(() => sync.scheduleSettings());
+sync.on('settings', () => {
+  if (!app.doc || !app.doc.meta.theme) theme.applyLook(theme.usualLook());
+  if (app.doc) render();
+});
 
 sync.on('changed', async (id) => {
   if (app.doc && app.doc.id === id) {

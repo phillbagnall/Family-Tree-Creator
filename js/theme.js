@@ -44,8 +44,28 @@ export function usualLook() {
   return structuredClone(DEFAULT_LOOK);
 }
 
+// The usual look syncs between devices (see sync.js, settings.json in the repo).
+const LOOK_DIRTY = 'ftc.look.dirty';
+let lookListener = null;
+export function onUsualLookEdited(fn) { lookListener = fn; }
+
+// Saved after she edits it here: marked to send to GitHub.
 export function setUsualLook(look) {
+  localStorage.setItem(LOOK_KEY, JSON.stringify({ ...look, updatedAt: Date.now() }));
+  localStorage.setItem(LOOK_DIRTY, '1');
+  if (lookListener) lookListener();
+}
+
+// Saved after it arrived from another device.
+export function storeSyncedLook(look) {
   localStorage.setItem(LOOK_KEY, JSON.stringify(look));
+  localStorage.removeItem(LOOK_DIRTY);
+}
+
+export const usualLookDirty = () => localStorage.getItem(LOOK_DIRTY) === '1';
+export const markUsualLookSent = () => localStorage.removeItem(LOOK_DIRTY);
+export function usualLookTime() {
+  try { return JSON.parse(localStorage.getItem(LOOK_KEY))?.updatedAt || 0; } catch { return 0; }
 }
 
 // ---------- colour maths ----------

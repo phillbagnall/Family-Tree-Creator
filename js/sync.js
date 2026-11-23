@@ -7,6 +7,7 @@
 import * as store from './store.js';
 import { merge, imagesUsed, normalise } from './model.js';
 import { GitHub, encodeText } from './github.js';
+import * as theme from './theme.js';
 
 const treePath = (id) => `trees/${id}/tree.json`;
 const imagePath = (treeId, imgId) => `trees/${treeId}/images/${imgId}.jpg`;
@@ -17,7 +18,7 @@ let chain = Promise.resolve();
 let timer = null;
 let pollTimer = null;
 let started = false;
-const listeners = { status: [], changed: [] };
+const listeners = { status: [], changed: [], settings: [] };
 
 export const state = { status: 'idle', message: '', lastSync: null };
 
@@ -130,9 +131,67 @@ async function pushTree(id) {
   throw new Error('Could not save after several tries');
 }
 
+// ---------- shared settings (the usual look) ----------
+// settings.json holds things that should be the same on every device.
+
+const SETTINGS = 'settings.json';
+const SETTINGS_SHA = 'ftc.settings.sha';
+
+async function pullSettings() {
+  const sha = remote.get(SETTINGS);
+  if (!sha || sha === localStorage.getItem(SETTINGS_SHA)) return;
+  const data = JSON.parse(new TextDecoder().decode(await gh.getBlob(sha)));
+  localStorage.setItem(SETTINGS_SHA, sha);
+  const look = data.look;
+  if (look && (look.updatedAt || 0) > theme.usualLookTime()) {
+    theme.storeSyncedLook(look);
+    emit('settings');
+  }
+}
+
+async function pushSettings() {
+  if (!theme.usualLookDirty()) return;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const look = theme.usualLook();
+    try {
+      const sha = await gh.putFile(SETTINGS, encodeText(JSON.stringify({ look }, null, 1)),
+        remote.get(SETTINGS), 'Update usual look');
+      remote.set(SETTINGS, sha);
+      localStorage.setItem(SETTINGS_SHA, sha);
+      if (theme.usualLookTime() === look.updatedAt) theme.markUsualLookSent();
+      return;
+    } catch (e) {
+      if (![409, 422, 404].includes(e.status)) throw e;
+      // Changed on another device meanwhile: newest edit wins.
+      const f = await gh.getFile(SETTINGS);
+      if (f) remote.set(SETTINGS, f.sha); else remote.delete(SETTINGS);
+      localStorage.removeItem(SETTINGS_SHA);
+      if (f) {
+        const theirs = JSON.parse(new TextDecoder().decode(f.bytes)).look;
+        if (theirs && (theirs.updatedAt || 0) > look.updatedAt) {
+          theme.storeSyncedLook(theirs);
+          localStorage.setItem(SETTINGS_SHA, f.sha);
+          emit('settings');
+          return;
+        }
+      }
+    }
+  }
+}
+
+let settingsTimer = null;
+export function scheduleSettings() {
+  clearTimeout(settingsTimer);
+  if (!gh || !navigator.onLine) return;
+  settingsTimer = setTimeout(() => serial(async () => {
+    try { await pushSettings(); } catch (e) { setStatus(e.status === 0 ? 'offline' : 'error', friendly(e)); }
+  }), 1500);
+}
+
 async function pullAll() {
   const files = await gh.listFiles();
   remote = new Map(files.map((f) => [f.path, f.sha]));
+  await pullSettings();
   for (const [path, sha] of remote) {
     const m = path.match(/^trees\/([^/]+)\/tree\.json$/);
     if (!m) continue;
@@ -168,6 +227,7 @@ export function syncAll() {
     setStatus('syncing');
     try {
       await pullAll();
+      await pushSettings();
       for (const rec of await store.allTrees()) if (rec.dirty) await pushTree(rec.id);
       setStatus('idle');
     } catch (e) {
