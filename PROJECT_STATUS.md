@@ -61,6 +61,9 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
 - 2026-11-24: Children sit exactly centred under their parents when they're within two grid squares of it
   - Build: v10 (sw.js VERSION v10) — centring
   - ![Brightheart centred under Lionheart and Frostfur](docs/visuals/2026-11-24-centred-child.jpg)
+- 2026-11-24: Selection box now visible while dragging
+  - Build: v12 (sw.js VERSION v12) — fix
+  - ![Selection box being drawn](docs/visuals/2026-11-24-selection-box.jpg)
 
 ## Decisions
 - 2026-11-23: Web app (PWA) rather than native apps, so one codebase covers PC, iPhone and Android with no app-store costs
@@ -89,3 +92,4 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
 - 2026-11-24: Dropped cards keep at least one grid square from other cards; checked her real Warrior Cats tree lays out with no cards closer than that
 - 2026-11-24: Exact centring of children (and married-in partners) when nearly centred; verified on her real tree
 - 2026-11-24: Single Relationship choice for couples; duplicate couples (Princess + Oliver x3 in her tree) merged automatically
+- 2026-11-24: Fixed the selection box not showing while dragging (SVG elements ignore the .hidden property)

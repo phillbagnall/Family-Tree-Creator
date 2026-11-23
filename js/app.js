@@ -418,12 +418,12 @@ app.vp = new Viewport(svg, world, {
   },
   box(a, b) {
     const r = boxRect(a, b);
-    marquee.hidden = false;
+    marquee.removeAttribute('hidden');
     marquee.setAttribute('x', r.x); marquee.setAttribute('y', r.y);
     marquee.setAttribute('width', r.w); marquee.setAttribute('height', r.h);
   },
   boxEnd(a, b, shift) {
-    marquee.hidden = true;
+    marquee.setAttribute('hidden', '');
     if (!app.vp.selectMode) setSelectMode(true); // Shift + drag on a computer
     const wa = app.vp.toWorld(a.x, a.y), wb = app.vp.toWorld(b.x, b.y);
     const r = boxRect(wa, wb);
@@ -434,7 +434,7 @@ app.vp = new Viewport(svg, world, {
     updateSelectBar();
     render();
   },
-  boxCancel() { marquee.hidden = true; },
+  boxCancel() { marquee.setAttribute('hidden', ''); },
   dragStart(id) {
     // Dragging a selected character moves the whole selection.
     const ids = app.multi.has(id) && app.multi.size > 1 ? [...app.multi] : [id];
