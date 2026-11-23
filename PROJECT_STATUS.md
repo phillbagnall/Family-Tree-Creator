@@ -7,12 +7,13 @@ blocked: false
 links: [https://github.com/phillbagnall/Family-Tree-Creator, https://phillbagnall.github.io/Family-Tree-Creator/]
 ---
 ## Summary
-A web app (installable on PC, iPhone and Android) for building family trees of characters in books, made for Phill's step-daughter. Trees are vector-drawn so zoom stays sharp, with photos, dates, notes, groups/houses, custom links, search, spoiler protection, PNG/PDF/SVG export, colour themes with gradient backgrounds (per tree, plus a usual look that syncs across devices), photo cropping, snap-to-grid layout, adding both parents in one step and offline use. Each tree syncs to the private GitHub repo phillbagnall/family-trees, so the same trees appear on every device. First version is live; next is setting up her devices and trying it with a real book.
+A web app (installable on PC, iPhone and Android) for building family trees of characters in books, made for Phill's step-daughter. Trees are vector-drawn so zoom stays sharp, with photos, dates, notes, groups/houses, custom links, search, spoiler protection, PNG/PDF/SVG export, colour themes with gradient backgrounds (per tree, plus a usual look that syncs across devices), photo cropping, snap-to-grid layout, adding both parents in one step, gender per character, an in-app "Suggest an improvement" form (arrives as GitHub issues) and offline use. Each tree syncs to the private GitHub repo phillbagnall/family-trees, so the same trees appear on every device. First version is live; next is setting up her devices and trying it with a real book.
 
 ## Next steps
 - [ ] Create a fine-grained GitHub access key for phillbagnall/family-trees (Contents: read and write)
 - [ ] Connect her PC and phone (paste the key, choose a PIN), and add the app to the phone's home screen
 - [ ] Try a real book's tree and note what feels awkward
+- [ ] Review suggestions she sends (issues labelled feedback in phillbagnall/family-trees)
 
 ## Key info
 - App: https://phillbagnall.github.io/Family-Tree-Creator/ (GitHub Pages from main branch, no build step)
@@ -20,6 +21,7 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
 - Each device stores the access key encrypted with her PIN (never in the repo)
 - PIN: change in Settings; "Forgot PIN?" on the lock screen reconnects with the access key; Settings → "Replace GitHub access key" when the key expires
 - Shared settings (the usual look) live in settings.json in the trees repo; light/dark mode and the PIN stay per device
+- Suggestions: app writes feedback/<id>.json to phillbagnall/family-trees; its Action (.github/workflows/feedback.yml) opens an issue labelled feedback and cc's you
 - Local testing: `node dev/serve.mjs 8787` plus `node dev/mock-github.mjs 8788` (see README)
 - When changing app files, bump VERSION in sw.js so installed copies update
 
@@ -43,6 +45,9 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
   - Build: v5 (sw.js VERSION v5) — snap to grid, add parents
   - ![Add parents dialog](docs/visuals/2026-11-24-add-parents.jpg)
   - ![Dragged card snapped to grid](docs/visuals/2026-11-24-snap-grid.jpg)
+- 2026-11-24: Gender choice in the character panel (female, male, unknown, other with custom text)
+  - Build: v6 (sw.js VERSION v6) — gender, suggestions
+  - ![Gender choice on a phone](docs/visuals/2026-11-24-gender.jpg)
 
 ## Decisions
 - 2026-11-23: Web app (PWA) rather than native apps, so one codebase covers PC, iPhone and Android with no app-store costs
@@ -52,6 +57,7 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
 - 2026-11-23: Default UI changed from brown/orange to blue; themes are per tree (synced), the usual look is per device
 - 2026-11-23: Usual look syncs via settings.json (newest edit wins); light/dark mode stays per device because it usually follows each device's own setting
 - 2026-11-24: Grid is 24px; cards are 9x3 grid squares and the automatic layout also sits on the grid; snapping can be switched off per tree
+- 2026-11-24: Suggestions travel as files in the data repo (her key already allows that) and an Action turns them into issues, so no extra key permissions or server are needed
 
 ## Log
 - 2026-11-23: Added to the project dashboard
@@ -60,3 +66,4 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
 - 2026-11-23: Added photo cropping (originals kept so photos can be re-cropped) and a replace-access-key option
 - 2026-11-23: Usual look now syncs across devices
 - 2026-11-24: Snap-to-grid (grid now pans/zooms with the tree) and add-both-parents dialog; partners of one person now stay grouped in the layout
+- 2026-11-24: Added gender field and in-app suggestions that arrive as GitHub issues; tested end to end

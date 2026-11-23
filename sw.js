@@ -2,7 +2,7 @@
 // syncs with GitHub separately; requests to GitHub are never cached here.
 // Bump VERSION whenever app files change so devices pick up the update.
 
-const VERSION = 'v5';
+const VERSION = 'v6';
 const CACHE = `ftc-${VERSION}`;
 const FILES = [
   './',
@@ -10,7 +10,7 @@ const FILES = [
   'css/app.css',
   'js/app.js', 'js/auth.js', 'js/editor.js', 'js/export.js', 'js/github.js',
   'js/layout.js', 'js/model.js', 'js/render.js', 'js/store.js', 'js/sync.js', 'js/theme.js',
-  'js/ui.js', 'js/viewport.js', 'js/cropper.js',
+  'js/ui.js', 'js/viewport.js', 'js/cropper.js', 'js/feedback.js',
   'vendor/jspdf.umd.min.js',
   'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',

@@ -12,6 +12,7 @@ import { $, h, icon, openSheet, closeSheet, sheetOpen, modal, confirmBox, askTex
 import { openPerson, openTreeSettings, openProgress, addPersonFlow } from './editor.js';
 import { openExport } from './export.js';
 import * as theme from './theme.js';
+import { openFeedback } from './feedback.js';
 
 const DEFAULT_REPO = 'phillbagnall/family-trees';
 
@@ -192,6 +193,9 @@ function openAppSettings() {
       h('h3', {}, 'Saving'),
       h('p', { class: 'hint' }, `Trees are saved to github.com/${s.repo}. ${sync.state.lastSync ? 'Last synced ' + timeAgo(sync.state.lastSync) + '.' : ''}`),
       h('button', { class: 'btn', onclick: () => { sync.syncAll(); toast('Syncing…'); } }, 'Sync now')),
+    h('div', { class: 'sec' },
+      h('h3', {}, 'Ideas & problems'),
+      h('button', { class: 'btn', onclick: () => openFeedback(app) }, '💡 Suggest an improvement')),
     h('div', { class: 'sec' },
       h('h3', {}, 'Light or dark'),
       modeSwitch(themeMode)),

@@ -179,6 +179,38 @@ async function pushSettings() {
   }
 }
 
+// ---------- suggestions for improving the app ----------
+// Saved as feedback/<id>.json in the trees repo. A GitHub Action there turns
+// each one into an issue, which notifies the repo owner.
+
+const FB_QUEUE = 'ftc.feedbackQueue';
+const readQueue = () => { try { return JSON.parse(localStorage.getItem(FB_QUEUE)) || []; } catch { return []; } };
+
+async function flushFeedback() {
+  if (!gh || !navigator.onLine) return false;
+  let q = readQueue();
+  while (q.length) {
+    const e = q[0];
+    try {
+      await gh.putFile(`feedback/${e.id}.json`, encodeText(JSON.stringify(e, null, 1)), undefined, 'Suggestion from the app');
+    } catch (err) {
+      if (err.status !== 422) throw err; // 422: already sent
+    }
+    q = readQueue().filter((x) => x.id !== e.id);
+    localStorage.setItem(FB_QUEUE, JSON.stringify(q));
+  }
+  return true;
+}
+
+// Returns true if it reached GitHub now, false if it will go later.
+export function sendFeedback(entry) {
+  localStorage.setItem(FB_QUEUE, JSON.stringify([...readQueue(), entry]));
+  if (!gh || !navigator.onLine) return Promise.resolve(false);
+  return serial(async () => {
+    try { return await flushFeedback(); } catch { return false; }
+  });
+}
+
 let settingsTimer = null;
 export function scheduleSettings() {
   clearTimeout(settingsTimer);
@@ -228,6 +260,7 @@ export function syncAll() {
     try {
       await pullAll();
       await pushSettings();
+      await flushFeedback();
       for (const rec of await store.allTrees()) if (rec.dirty) await pushTree(rec.id);
       setStatus('idle');
     } catch (e) {

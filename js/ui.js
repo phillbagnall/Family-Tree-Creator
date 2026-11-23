@@ -43,7 +43,7 @@ export function openSheet(title, body, { short = false, onClose } = {}) {
   closeSheet(true);
   $('sheetTitle').textContent = title;
   const b = $('sheetBody');
-  b.replaceChildren(...(Array.isArray(body) ? body : [body]));
+  b.replaceChildren(...(Array.isArray(body) ? body : [body]).filter((x) => x != null && x !== false));
   b.scrollTop = 0;
   $('sheet').classList.toggle('short', short);
   $('sheet').hidden = false;

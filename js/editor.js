@@ -5,6 +5,7 @@ import * as store from './store.js';
 import { initials } from './render.js';
 import * as theme from './theme.js';
 import { cropPhoto } from './cropper.js';
+import { openFeedback } from './feedback.js';
 import { $, h, icon, openSheet, closeSheet, modal, confirmBox, askText, toast, pickFile, resizeImage } from './ui.js';
 
 const opts = (pairs, cur) => pairs.map(([v, l]) => h('option', { value: v, selected: v === cur }, l));
@@ -247,6 +248,23 @@ export function openPerson(app, id) {
 
     const kids = [];
     kids.push(h('div', { class: 'photo-row' }, photoBtn, h('div', { class: 'fields' }, nameInp, akaInp)));
+
+    // Gender
+    const genderBox = h('div', { class: 'sec' });
+    const drawGender = () => {
+      const g = p.gender || 'unknown';
+      genderBox.replaceChildren(
+        h('h3', {}, 'Gender'),
+        h('div', { class: 'seg', role: 'group', 'aria-label': 'Gender' }, M.GENDERS.map(([v, l]) =>
+          h('button', { type: 'button', 'aria-pressed': String(g === v), onclick: () => {
+            save({ gender: v });
+            drawGender();
+            if (v === 'other') genderBox.querySelector('input')?.focus();
+          } }, l))),
+        g === 'other' ? field(null, p.genderCustom, (v) => save({ genderCustom: v }), { placeholder: 'Describe it, e.g. non-binary, shapeshifter' }) : null);
+    };
+    drawGender();
+    kids.push(genderBox);
     kids.push(h('div', { class: 'row2' },
       field('Born', p.born, (v) => save({ born: v }), { placeholder: 'e.g. 1832' }),
       field('Died', p.died, (v) => save({ died: v }), { placeholder: 'e.g. Third Age 3019' })));
@@ -480,6 +498,9 @@ export function openTreeSettings(app) {
         h('input', { type: 'checkbox', checked: m.snap !== false, onchange: (e) => { setM({ snap: e.target.checked }); } })),
       h('p', { class: 'hint' }, 'Drag characters to move them. Tidy up puts everyone back in their automatic place.'),
       h('button', { class: 'btn', type: 'button', onclick: () => { M.clearPositions(doc); app.commit(); app.vp.fit(app.lay.bounds); toast('Tidied up'); } }, 'Tidy up layout')));
+
+    kids.push(h('div', { class: 'sec' }, h('h3', {}, 'Ideas & problems'),
+      h('button', { class: 'btn', type: 'button', onclick: () => openFeedback(app) }, '💡 Suggest an improvement')));
 
     kids.push(h('div', { class: 'sec danger-zone' },
       h('button', { class: 'btn danger', type: 'button', onclick: async () => {

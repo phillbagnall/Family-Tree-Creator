@@ -27,6 +27,12 @@ export const CHILD_KINDS = [
   ['step', 'Step'],
   ['foster', 'Foster'],
 ];
+export const GENDERS = [
+  ['female', 'Female'],
+  ['male', 'Male'],
+  ['unknown', 'Unknown'],
+  ['other', 'Other'],
+];
 export const GROUP_COLOURS = [
   '#b03a2e', '#c0702a', '#b8962e', '#5d8a3a', '#2e8a7a',
   '#2f6aa8', '#5b4fa8', '#9a4a8f', '#6b5844', '#55606b',
@@ -154,6 +160,8 @@ export function addPerson(doc, data = {}) {
     died: '',
     events: [],     // [{label, date}]
     notes: '',
+    gender: 'unknown', // female | male | unknown | other (+ genderCustom)
+    genderCustom: '',
     photo: null,    // image id
     groups: [],
     reveal: null,   // {book, chapter}

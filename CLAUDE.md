@@ -58,3 +58,18 @@ links: [https://github.com/owner/repo]
 ## Decisions
 ## Log
 ```
+
+## Suggestions from the app
+
+Beatrix (the main user) can send ideas and problem reports from inside the app (Settings or Tree settings → "Suggest an improvement").
+Each one is saved as `feedback/<id>.json` in the private data repo `phillbagnall/family-trees`, and a GitHub Action there
+(`.github/workflows/feedback.yml`) opens an issue labelled `feedback` for it.
+
+- To see what's waiting: `gh issue list -R phillbagnall/family-trees --label feedback --state open`
+- When asked to "check suggestions" (or similar), list the open ones, discuss which to do, and once one is done comment on and
+  close its issue (`gh issue close <n> -R phillbagnall/family-trees --comment "..."`).
+- Never edit or delete anything under `trees/` in that repo: it is her real data.
+
+## Releasing changes
+
+- Bump `VERSION` in `sw.js` and `APP_VERSION` in `js/feedback.js` together for each release, so installed copies update.
