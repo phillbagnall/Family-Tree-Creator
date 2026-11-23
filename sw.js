@@ -2,14 +2,14 @@
 // syncs with GitHub separately; requests to GitHub are never cached here.
 // Bump VERSION whenever app files change so devices pick up the update.
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = `ftc-${VERSION}`;
 const FILES = [
   './',
   'index.html',
   'css/app.css',
   'js/app.js', 'js/auth.js', 'js/editor.js', 'js/export.js', 'js/github.js',
-  'js/layout.js', 'js/model.js', 'js/render.js', 'js/store.js', 'js/sync.js',
+  'js/layout.js', 'js/model.js', 'js/render.js', 'js/store.js', 'js/sync.js', 'js/theme.js',
   'js/ui.js', 'js/viewport.js',
   'vendor/jspdf.umd.min.js',
   'manifest.webmanifest',

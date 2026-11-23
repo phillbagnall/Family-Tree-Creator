@@ -11,6 +11,7 @@ import { Viewport } from './viewport.js';
 import { $, h, icon, openSheet, closeSheet, sheetOpen, modal, confirmBox, askText, toast, timeAgo, isPhone } from './ui.js';
 import { openPerson, openTreeSettings, openProgress, addPersonFlow } from './editor.js';
 import { openExport } from './export.js';
+import * as theme from './theme.js';
 
 const DEFAULT_REPO = 'phillbagnall/family-trees';
 
@@ -118,6 +119,7 @@ let libRefreshPending = false;
 
 async function showLibrary() {
   app.doc = null;
+  theme.applyLook(theme.usualLook());
   show('library');
   history.replaceState(null, '', location.pathname);
   await renderLibrary();
@@ -184,17 +186,19 @@ $('libSettings').addEventListener('click', openAppSettings);
 
 function openAppSettings() {
   const s = auth.session();
-  const theme = localStorage.getItem('ftc.theme') || 'auto';
+  const themeMode = localStorage.getItem('ftc.theme') || 'auto';
   openSheet('Settings', [
     h('div', { class: 'sec' },
       h('h3', {}, 'Saving'),
       h('p', { class: 'hint' }, `Trees are saved to github.com/${s.repo}. ${sync.state.lastSync ? 'Last synced ' + timeAgo(sync.state.lastSync) + '.' : ''}`),
       h('button', { class: 'btn', onclick: () => { sync.syncAll(); toast('Syncing…'); } }, 'Sync now')),
     h('div', { class: 'sec' },
-      h('h3', {}, 'Appearance'),
-      h('label', {}, 'Theme', h('select', {
-        onchange: (e) => setTheme(e.target.value),
-      }, [['auto', 'Match device'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => h('option', { value: v, selected: v === theme }, l))))),
+      h('h3', {}, 'Light or dark'),
+      modeSwitch(themeMode)),
+    h('div', { class: 'sec' },
+      h('h3', {}, 'My usual look'),
+      h('p', { class: 'hint' }, 'Used for the trees page and any tree without its own look. Each tree can have its own look in its settings.'),
+      theme.lookEditor(theme.usualLook(), (look) => { theme.setUsualLook(look); theme.applyLook(look); })),
     h('div', { class: 'sec' },
       h('h3', {}, 'Security'),
       h('button', { class: 'btn', onclick: changePin }, 'Change PIN'),
@@ -210,8 +214,23 @@ function setTheme(v) {
   localStorage.setItem('ftc.theme', v);
   if (v === 'auto') delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = v;
+  theme.applyLook(theme.currentLook());
   if (app.doc) render();
 }
+
+function modeSwitch(cur) {
+  const seg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Light or dark' });
+  const draw = (v) => seg.replaceChildren(...[['auto', 'Match device'], ['light', 'Light'], ['dark', 'Dark']].map(([k, l]) =>
+    h('button', { type: 'button', 'aria-pressed': String(k === v), onclick: () => { setTheme(k); draw(k); if (app.refreshLooks) app.refreshLooks(); } }, l)));
+  draw(cur);
+  return seg;
+}
+
+// The look for the open tree (its own, or the usual one).
+export function applyTreeLook() {
+  theme.applyLook(app.doc && app.doc.meta.theme ? app.doc.meta.theme : theme.usualLook());
+}
+app.applyTreeLook = applyTreeLook;
 
 async function changePin() {
   const r = await modal({
@@ -264,6 +283,7 @@ sync.on('changed', async (id) => {
   if (app.doc && app.doc.id === id) {
     const rec = await store.getTree(id);
     app.doc = M.merge(app.doc, rec.doc);
+    applyTreeLook();
     render();
     if (sheetOpen() && app.refreshSheet) app.refreshSheet();
   } else if (!$('library').hidden && !libRefreshPending) {
@@ -315,7 +335,7 @@ function offsets() {
 function themeColours() {
   const cs = getComputedStyle(document.documentElement);
   const v = (n) => cs.getPropertyValue(n).trim();
-  return { card: v('--card'), cardLine: v('--card-line'), text: v('--text'), muted: v('--muted'), line: v('--line'), accent: v('--accent'), photoBg: v('--photo-bg'), halo: v('--bg') };
+  return { card: v('--card'), cardLine: v('--card-line'), text: v('--text'), muted: v('--muted'), line: v('--line'), accent: v('--accent'), photoBg: v('--photo-bg'), halo: v('--card') };
 }
 
 let pendingPhotos = new Set();
@@ -391,6 +411,7 @@ async function openTree(id) {
   const rec = await store.getTree(id);
   if (!rec) return;
   app.doc = M.normalise(rec.doc);
+  applyTreeLook();
   app.selected = null;
   app.matches = null;
   $('searchInput').value = '';
@@ -491,5 +512,6 @@ document.addEventListener('keydown', (e) => {
 const savedTheme = localStorage.getItem('ftc.theme');
 if (savedTheme && savedTheme !== 'auto') document.documentElement.dataset.theme = savedTheme;
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => app.doc && render());
+theme.applyLook(theme.usualLook());
 
 boot();

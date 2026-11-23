@@ -40,8 +40,8 @@ const CHILD_DASH = { birth: '', adopted: '7 5', step: '2 5', foster: '10 4 2 4' 
 
 // Colours come from CSS variables in the app; exports pass a fixed palette.
 export const LIGHT = {
-  card: '#fffdf8', cardLine: '#d9cfbf', text: '#2b2520', muted: '#7a6e62', line: '#8c7b68',
-  accent: '#b5562f', photoBg: '#efe6d8', halo: '#f7f1e6',
+  card: '#ffffff', cardLine: '#d3dbe7', text: '#1c2433', muted: '#5f6b7d', line: '#7d8aa0',
+  accent: '#2563eb', photoBg: '#e6ecf5', halo: '#ffffff',
 };
 
 function partnerLine(u, a, b, c) {

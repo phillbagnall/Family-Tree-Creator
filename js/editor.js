@@ -3,6 +3,7 @@
 import * as M from './model.js';
 import * as store from './store.js';
 import { initials } from './render.js';
+import * as theme from './theme.js';
 import { $, h, icon, openSheet, closeSheet, modal, confirmBox, askText, toast, pickFile, resizeImage } from './ui.js';
 
 const opts = (pairs, cur) => pairs.map(([v, l]) => h('option', { value: v, selected: v === cur }, l));
@@ -376,6 +377,17 @@ export function openTreeSettings(app) {
       M.addGroup(doc, name); app.commit(); build();
     } }, '+ Add a group'));
     kids.push(h('div', { class: 'sec' }, h('h3', {}, 'Groups & colours'), h('p', { class: 'hint' }, 'Houses, families, clans or teams. Characters show the colour of their group.'), gbox));
+
+    // Look (colours and background) for this tree
+    const own = !!m.theme;
+    const look = h('div', { class: 'sec' },
+      h('div', { class: 'seg', role: 'group', 'aria-label': 'Look of this tree' },
+        h('button', { type: 'button', 'aria-pressed': String(!own), onclick: () => { if (own) { setM({ theme: null }); app.applyTreeLook(); app.render(); build(); } } }, 'My usual look'),
+        h('button', { type: 'button', 'aria-pressed': String(own), onclick: () => { if (!own) { setM({ theme: theme.usualLook() }); app.applyTreeLook(); app.render(); build(); } } }, 'Its own look')),
+      own
+        ? theme.lookEditor(m.theme, (l) => { setM({ theme: l }); app.applyTreeLook(); app.render(); })
+        : h('p', { class: 'hint' }, 'Choose "Its own look" to give this tree its own colours and background, e.g. to match the book cover.'));
+    kids.push(h('div', { class: 'sec' }, h('h3', {}, 'Colours & background'), look));
 
     kids.push(h('div', { class: 'sec' }, h('h3', {}, 'What the lines mean'), legend()));
 
