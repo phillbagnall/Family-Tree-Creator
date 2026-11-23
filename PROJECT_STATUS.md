@@ -55,6 +55,9 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
 - 2026-11-24: Lines from different families kept at least two grid squares apart; names auto-capitalised
   - Build: v8 (sw.js VERSION v8) — line spacing, capitals
   - ![Separated family lines](docs/visuals/2026-11-24-line-spacing.jpg)
+- 2026-11-24: Cards dropped onto other cards are nudged to the nearest free spot (one grid square clear, same row preferred)
+  - Build: v9 (sw.js VERSION v9) — drop nudging
+  - ![Firestar nudged beside Scourge](docs/visuals/2026-11-24-drop-nudge.jpg)
 
 ## Decisions
 - 2026-11-23: Web app (PWA) rather than native apps, so one codebase covers PC, iPhone and Android with no app-store costs
@@ -78,3 +81,4 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
 - 2026-11-24: Added gender field and in-app suggestions that arrive as GitHub issues; tested end to end
 - 2026-11-24: Added refresh button (sync + app update) and box selection / branch moving
 - 2026-11-24: Auto-capitalised names (typing + one-off fix of existing names) and minimum spacing between family lines
+- 2026-11-24: Dropped cards keep at least one grid square from other cards; checked her real Warrior Cats tree lays out with no cards closer than that

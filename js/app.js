@@ -456,15 +456,46 @@ app.vp = new Viewport(svg, world, {
       dx = Math.round(dx / GRID) * GRID;
       dy = Math.round(dy / GRID) * GRID;
     }
+    const moved = {};
     for (const id of drag.ids) {
       let x = drag.bases[id].x + dx, y = drag.bases[id].y + dy;
       if (!snapping() && drag.ids.length === 1 && Math.hypot(x, y) < 14) x = y = 0; // back to its automatic spot
-      M.setPosition(app.doc, id, x, y);
+      moved[id] = { x, y };
     }
+    // Don't let cards land on or right against other cards: nudge to the nearest free spot.
+    const shift = freeSpot(moved);
+    for (const [id, o] of Object.entries(moved)) M.setPosition(app.doc, id, o.x + shift.x, o.y + shift.y);
     drag = null;
     commit();
   },
 });
+
+// Smallest grid move (for the whole group) that keeps every moved card at least one grid
+// square away from the cards that stayed put.
+function freeSpot(moved) {
+  const ids = Object.keys(moved);
+  const offs = {};
+  for (const [id, o] of Object.entries(app.doc.positions)) if (!o.deleted && (o.x || o.y)) offs[id] = o;
+  Object.assign(offs, moved);
+  const L = layout(app.view, offs, { snap: snapping() });
+  const movedSet = new Set(ids);
+  const still = Object.keys(L.pos).filter((id) => !movedSet.has(id)).map((id) => L.pos[id]);
+  const fits = (sx, sy) => ids.every((id) => {
+    const p = L.pos[id];
+    if (!p) return true;
+    const x = p.x + sx, y = p.y + sy;
+    return still.every((q) => Math.abs(q.x - x) >= CARD_W + GRID || Math.abs(q.y - y) >= CARD_H + GRID);
+  });
+  if (fits(0, 0)) return { x: 0, y: 0 };
+  // Try nearby grid spots, closest first. Moving up or down counts three times as far as
+  // sideways, so a card dropped onto a row stays in that row when there's room.
+  const spots = [];
+  for (let i = -20; i <= 20; i++) for (let j = -8; j <= 8; j++) spots.push({ x: i * GRID, y: j * GRID, cost: Math.hypot(i, j * 3) });
+  spots.sort((p, q) => p.cost - q.cost);
+  const ok = spots.find((c) => fits(c.x, c.y));
+  if (ok) return { x: ok.x, y: ok.y };
+  return { x: 0, y: 0 };
+}
 
 function offsets() {
   const out = {};
