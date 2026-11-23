@@ -202,6 +202,7 @@ function openAppSettings() {
     h('div', { class: 'sec' },
       h('h3', {}, 'Security'),
       h('button', { class: 'btn', onclick: changePin }, 'Change PIN'),
+      h('button', { class: 'btn', onclick: replaceKey }, 'Replace GitHub access key'),
       h('button', { class: 'btn', onclick: () => { auth.lock(); sync.stop(); closeSheet(); showLock(); } }, 'Lock now')),
     h('div', { class: 'sec danger-zone' },
       h('h3', {}, 'This device'),
@@ -243,6 +244,33 @@ async function changePin() {
   if (r.values.a !== r.values.b) return toast("The two PINs don't match.");
   await auth.changePin(r.values.a);
   toast('PIN changed');
+}
+
+async function replaceKey() {
+  const s = auth.session();
+  const r = await modal({
+    title: 'Replace access key',
+    text: 'Use this if the key has expired or been replaced on GitHub. Your trees are not affected.',
+    fields: [
+      { name: 'key', label: 'New access key', type: 'password', placeholder: 'github_pat_…' },
+      { name: 'pin', label: 'Your PIN (or a new one, 4–8 numbers)', type: 'password' },
+    ],
+    buttons: [{ label: 'Cancel', value: '' }, { label: 'Replace', value: 'ok', primary: true }],
+  });
+  if (!r) return;
+  const token = r.values.key.trim();
+  if (!/^\d{4,8}$/.test(r.values.pin)) return toast('The PIN should be 4 to 8 numbers.');
+  const [owner, name] = s.repo.split('/');
+  try {
+    await new GitHub({ owner, repo: name, token }).checkRepo();
+  } catch (ex) {
+    return toast(ex.status === 401 ? "GitHub didn't accept that key." : ex.status === 404 ? "That key can't see the trees repository." : ex.message);
+  }
+  await auth.save({ token, repo: s.repo, pin: r.values.pin });
+  sync.stop();
+  sync.start({ owner, repo: name, token });
+  sync.syncAll();
+  toast('Access key replaced');
 }
 
 async function disconnect() {

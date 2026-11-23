@@ -344,7 +344,7 @@ export function clearPositions(doc) {
 }
 
 export function imagesUsed(doc) {
-  return new Set(live(doc.people).map((p) => p.photo).filter(Boolean));
+  return new Set(live(doc.people).flatMap((p) => [p.photo, p.photoSrc]).filter(Boolean));
 }
 
 // ---------- merge ----------

@@ -4,6 +4,7 @@ import * as M from './model.js';
 import * as store from './store.js';
 import { initials } from './render.js';
 import * as theme from './theme.js';
+import { cropPhoto } from './cropper.js';
 import { $, h, icon, openSheet, closeSheet, modal, confirmBox, askText, toast, pickFile, resizeImage } from './ui.js';
 
 const opts = (pairs, cur) => pairs.map(([v, l]) => h('option', { value: v, selected: v === cur }, l));
@@ -141,18 +142,37 @@ export function openPerson(app, id) {
     const photoBtn = h('button', { class: 'photo', type: 'button', 'aria-label': 'Photo' }, p.photo ? '' : initials(p.name), h('span', { class: 'cam' }, icon('camera')));
     if (p.photo) store.imageUrl(p.photo, doc.id).then((u) => { if (u) photoBtn.style.backgroundImage = `url("${u}")`; });
     photoBtn.addEventListener('click', async () => {
+      let choice = 'change';
       if (p.photo) {
-        const c = await chooseOne('Photo', null, [['change', 'Choose a different picture'], ['remove', 'Remove picture']]);
-        if (!c) return;
-        if (c === 'remove') { save({ photo: null }); return build(); }
+        choice = await chooseOne('Photo', null, [['adjust', 'Move or zoom the picture'], ['change', 'Choose a different picture'], ['remove', 'Remove picture']]);
+        if (!choice) return;
+        if (choice === 'remove') { save({ photo: null, photoSrc: null, photoCrop: null }); return build(); }
       }
-      const file = await pickFile();
-      if (!file) return;
       try {
-        const blob = await resizeImage(file);
+        let srcId, srcBlob, crop = null;
+        if (choice === 'adjust') {
+          // Re-crop from the full original picture (older photos only have the cropped one).
+          srcId = p.photoSrc || p.photo;
+          await store.imageUrl(srcId, doc.id);
+          const rec = await store.getImage(srcId);
+          if (!rec) return toast("Couldn't load the picture. Are you online?");
+          srcBlob = rec.blob;
+          crop = p.photoSrc ? p.photoCrop : null;
+        } else {
+          const file = await pickFile();
+          if (!file) return;
+          srcBlob = await resizeImage(file, 1600);
+          srcId = null;
+        }
+        const res = await cropPhoto(srcBlob, crop);
+        if (!res) return;
+        if (!srcId) {
+          srcId = M.uid();
+          await store.putImage({ id: srcId, treeId: doc.id, blob: srcBlob, uploaded: false });
+        }
         const imgId = M.uid();
-        await store.putImage({ id: imgId, treeId: doc.id, blob, uploaded: false });
-        save({ photo: imgId });
+        await store.putImage({ id: imgId, treeId: doc.id, blob: res.blob, uploaded: false });
+        save({ photo: imgId, photoSrc: srcId, photoCrop: res.crop });
         build();
       } catch (e) {
         toast(e.message || "Couldn't use that picture");

@@ -7,18 +7,18 @@ blocked: false
 links: [https://github.com/phillbagnall/Family-Tree-Creator, https://phillbagnall.github.io/Family-Tree-Creator/]
 ---
 ## Summary
-A web app (installable on PC, iPhone and Android) for building family trees of characters in books, made for Phill's step-daughter. Trees are vector-drawn so zoom stays sharp, with photos, dates, notes, groups/houses, custom links, search, spoiler protection, PNG/PDF/SVG export, colour themes with gradient backgrounds (per tree) and offline use. Each tree syncs to the private GitHub repo phillbagnall/family-trees, so the same trees appear on every device. First version is live; next is setting up her devices and trying it with a real book.
+A web app (installable on PC, iPhone and Android) for building family trees of characters in books, made for Phill's step-daughter. Trees are vector-drawn so zoom stays sharp, with photos, dates, notes, groups/houses, custom links, search, spoiler protection, PNG/PDF/SVG export, colour themes with gradient backgrounds (per tree), photo cropping and offline use. Each tree syncs to the private GitHub repo phillbagnall/family-trees, so the same trees appear on every device. First version is live; next is setting up her devices and trying it with a real book.
 
 ## Next steps
 - [ ] Create a fine-grained GitHub access key for phillbagnall/family-trees (Contents: read and write)
 - [ ] Connect her PC and phone (paste the key, choose a PIN), and add the app to the phone's home screen
 - [ ] Try a real book's tree and note what feels awkward
-- [ ] Consider photo cropping/positioning in the circle
 
 ## Key info
 - App: https://phillbagnall.github.io/Family-Tree-Creator/ (GitHub Pages from main branch, no build step)
 - Data: private repo phillbagnall/family-trees, files at trees/<id>/tree.json and trees/<id>/images/<id>.jpg
 - Each device stores the access key encrypted with her PIN (never in the repo)
+- PIN: change in Settings; "Forgot PIN?" on the lock screen reconnects with the access key; Settings → "Replace GitHub access key" when the key expires
 - Local testing: `node dev/serve.mjs 8787` plus `node dev/mock-github.mjs 8788` (see README)
 - When changing app files, bump VERSION in sw.js so installed copies update
 
@@ -35,6 +35,9 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
   - Build: v2 (sw.js VERSION v2) — themes
   - ![Tree theme picker](docs/visuals/2026-11-23-tree-theme-picker.jpg)
   - ![Bold purple background](docs/visuals/2026-11-23-bold-purple-theme.jpg)
+- 2026-11-23: Photo cropper — drag, pinch or slider to fit a picture in the circle
+  - Build: v3 (sw.js VERSION v3) — photo cropping
+  - ![Photo cropper](docs/visuals/2026-11-23-photo-cropper.jpg)
 
 ## Decisions
 - 2026-11-23: Web app (PWA) rather than native apps, so one codebase covers PC, iPhone and Android with no app-store costs
@@ -47,3 +50,4 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
 - 2026-11-23: Added to the project dashboard
 - 2026-11-23: Built and tested first version (layout, editor, sync with merge, photos, export, spoilers, offline)
 - 2026-11-23: Added themes (button colours, gradient backgrounds, per-tree looks) and switched default UI to blue
+- 2026-11-23: Added photo cropping (originals kept so photos can be re-cropped) and a replace-access-key option

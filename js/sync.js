@@ -16,6 +16,7 @@ let remote = new Map();     // path -> sha, from the last listing
 let chain = Promise.resolve();
 let timer = null;
 let pollTimer = null;
+let started = false;
 const listeners = { status: [], changed: [] };
 
 export const state = { status: 'idle', message: '', lastSync: null };
@@ -40,15 +41,17 @@ function serial(fn) {
 export function start({ owner, repo, token }) {
   gh = new GitHub({ owner, repo, token });
   store.setImageFetcher(fetchImage);
+  clearInterval(pollTimer);
+  pollTimer = setInterval(() => {
+    if (document.visibilityState === 'visible') syncAll();
+  }, 60000);
+  if (started) return gh;
+  started = true;
   window.addEventListener('online', () => syncAll());
   window.addEventListener('offline', () => setStatus('offline'));
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') syncAll();
   });
-  clearInterval(pollTimer);
-  pollTimer = setInterval(() => {
-    if (document.visibilityState === 'visible') syncAll();
-  }, 60000);
   return gh;
 }
 
