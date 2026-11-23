@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <title>Family Tree Creator</title>
+  <meta name="description" content="Build family trees for the characters in your favourite books.">
+  <meta name="theme-color" content="#f4efe6" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1d1a17" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Family Trees">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <!-- First run: connect to GitHub and choose a PIN -->
+  <section id="setup" class="screen center" hidden>
+    <form class="panel" id="setupForm" autocomplete="off">
+      <div class="brand"><img src="icons/icon.svg" alt="" width="56" height="56"><h1>Family Tree Creator</h1></div>
+      <p class="lead">Your trees are saved to GitHub, so they're the same on every device. Connect this device once to get started.</p>
+      <label>Trees repository
+        <input id="setupRepo" placeholder="owner/family-trees" required pattern="[\w.-]+/[\w.-]+" autocapitalize="off" spellcheck="false">
+      </label>
+      <label>Access key
+        <input id="setupKey" type="password" placeholder="github_pat_…" required autocapitalize="off" spellcheck="false">
+      </label>
+      <details class="help">
+        <summary>Where do I get the access key?</summary>
+        <ol>
+          <li>Whoever looks after the trees (the repository owner) opens <a id="patLink" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub → New fine-grained token</a>.</li>
+          <li>Repository access: <b>Only select repositories</b> → choose the trees repository.</li>
+          <li>Permissions → Repository → <b>Contents: Read and write</b>.</li>
+          <li>Generate the token and paste it here. Keep a copy somewhere safe for the next device.</li>
+        </ol>
+      </details>
+      <div class="row2">
+        <label>Choose a PIN
+          <input id="setupPin" type="password" inputmode="numeric" pattern="\d{4,8}" minlength="4" maxlength="8" required placeholder="4–8 digits">
+        </label>
+        <label>PIN again
+          <input id="setupPin2" type="password" inputmode="numeric" pattern="\d{4,8}" minlength="4" maxlength="8" required>
+        </label>
+      </div>
+      <p class="error" id="setupError" role="alert"></p>
+      <button class="btn primary big" type="submit" id="setupGo">Connect</button>
+    </form>
+  </section>
+
+  <!-- Unlock with PIN -->
+  <section id="lock" class="screen center" hidden>
+    <form class="panel narrow" id="lockForm" autocomplete="off">
+      <div class="brand"><img src="icons/icon.svg" alt="" width="56" height="56"><h1>Welcome back</h1></div>
+      <label>PIN
+        <input id="lockPin" type="password" inputmode="numeric" maxlength="8" required autofocus class="pin">
+      </label>
+      <p class="error" id="lockError" role="alert"></p>
+      <button class="btn primary big" type="submit">Open my trees</button>
+      <button class="btn link" type="button" id="forgotPin">Forgot PIN?</button>
+    </form>
+  </section>
+
+  <!-- Library of trees -->
+  <section id="library" class="screen" hidden>
+    <header class="bar">
+      <div class="brand small"><img src="icons/icon.svg" alt="" width="32" height="32"><h1>My family trees</h1></div>
+      <span class="spacer"></span>
+      <button class="sync-pill" data-sync></button>
+      <button class="icon-btn" id="libSettings" aria-label="Settings" title="Settings"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg></button>
+    </header>
+    <main class="lib-main">
+      <div class="lib-grid" id="libGrid"></div>
+      <details class="deleted" id="libDeleted" hidden>
+        <summary>Recently deleted</summary>
+        <div class="lib-grid" id="libDeletedGrid"></div>
+      </details>
+    </main>
+  </section>
+
+  <!-- A tree -->
+  <section id="tree" class="screen" hidden>
+    <header class="bar tree-bar">
+      <button class="icon-btn" id="treeBack" aria-label="All trees" title="All trees"><svg viewBox="0 0 24 24"><use href="#i-back"/></svg></button>
+      <button class="tree-title" id="treeTitle" title="Tree settings"></button>
+      <span class="spacer"></span>
+      <div class="search" id="searchBox">
+        <svg viewBox="0 0 24 24"><use href="#i-search"/></svg>
+        <input id="searchInput" type="search" placeholder="Find a character" autocomplete="off" enterkeyhint="search">
+        <span class="search-count" id="searchCount"></span>
+      </div>
+      <button class="icon-btn" id="searchToggle" aria-label="Search" title="Search"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg></button>
+      <button class="sync-pill" data-sync></button>
+      <button class="icon-btn" id="treeExport" aria-label="Export" title="Save as picture or PDF"><svg viewBox="0 0 24 24"><use href="#i-share"/></svg></button>
+      <button class="icon-btn" id="treeSettings" aria-label="Tree settings" title="Tree settings"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg></button>
+    </header>
+    <button class="spoiler-pill" id="spoilerPill" hidden></button>
+    <div class="canvas-wrap">
+      <svg id="canvas" xmlns="http://www.w3.org/2000/svg">
+        <defs id="canvasDefs"></defs>
+        <g id="world"></g>
+      </svg>
+      <div class="empty" id="treeEmpty" hidden>
+        <p>This tree is empty.</p>
+        <button class="btn primary big" id="emptyAdd">Add the first character</button>
+      </div>
+    </div>
+    <div class="zoom">
+      <button class="icon-btn raised" id="zoomIn" aria-label="Zoom in"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></button>
+      <button class="icon-btn raised" id="zoomOut" aria-label="Zoom out"><svg viewBox="0 0 24 24"><use href="#i-minus"/></svg></button>
+      <button class="icon-btn raised" id="zoomFit" aria-label="Show whole tree" title="Show whole tree"><svg viewBox="0 0 24 24"><use href="#i-fit"/></svg></button>
+    </div>
+    <button class="fab" id="addPerson"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg><span>Character</span></button>
+  </section>
+
+  <!-- Slide-in panel used for editing -->
+  <div class="scrim" id="scrim" hidden></div>
+  <aside class="sheet" id="sheet" hidden aria-modal="true" role="dialog">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head">
+      <h2 id="sheetTitle"></h2>
+      <button class="icon-btn" id="sheetClose" aria-label="Close"><svg viewBox="0 0 24 24"><use href="#i-close"/></svg></button>
+    </div>
+    <div class="sheet-body" id="sheetBody"></div>
+  </aside>
+
+  <!-- Small pop-up dialogs -->
+  <dialog id="modal"><form method="dialog" id="modalForm"></form></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <input type="file" id="filePick" accept="image/*" hidden>
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-gear" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M15 18l-6-6 6-6"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14Zm9 2-4-4"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M5 12h14"/></symbol>
+    <symbol id="i-fit" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 19.5V5a2 2 0 0 1 2-2h14v15H6.5A2.5 2.5 0 0 0 4 20.5 2.5 2.5 0 0 0 6.5 23H20v-5"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="m6 15 6-6 6 6"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 8h3l2-3h6l2 3h3v11H4z M12 17a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/></symbol>
+  </svg>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

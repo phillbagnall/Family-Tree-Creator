@@ -1,0 +1,7 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "app", "runtimeExecutable": "node", "runtimeArgs": ["dev/serve.mjs", "8787"], "port": 8787 },
+    { "name": "mock-github", "runtimeExecutable": "node", "runtimeArgs": ["dev/mock-github.mjs", "8788"], "port": 8788 }
+  ]
+}
