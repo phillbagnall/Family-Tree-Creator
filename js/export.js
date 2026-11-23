@@ -19,7 +19,7 @@ export async function buildSvg(app, { photos, background = true }) {
   const view = app.view;
   const offs = {};
   for (const [id, o] of Object.entries(app.doc.positions)) if (!o.deleted) offs[id] = o;
-  const lay = layout(view, offs);
+  const lay = layout(view, offs, { snap: app.doc.meta.snap !== false });
   const b = lay.bounds;
   const W = Math.ceil(b.w + MARGIN * 2);
   const H = Math.ceil(b.h + MARGIN * 2 + HEADER);

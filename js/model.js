@@ -234,6 +234,16 @@ export function linkPartners(doc, a, b) {
   return addUnion(doc, [a, b]);
 }
 
+// Add a child to the couple a + b, without touching either parent's other families.
+export function addChildToCouple(doc, a, b, childId, kind = 'birth') {
+  const u = partnerUnion(doc, a, b) || addUnion(doc, [a, b]);
+  if (!u.children.some((c) => c.id === childId)) {
+    u.children.push({ id: childId, kind });
+    touch(u);
+  }
+  return u;
+}
+
 // Add childId as a child of parentId (and optionally otherParentId).
 export function linkChild(doc, parentId, childId, otherParentId = null, kind = 'birth') {
   if (parentId === childId || otherParentId === childId) return null;

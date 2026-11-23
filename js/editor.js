@@ -85,7 +85,7 @@ export async function addPersonFlow(app) {
   if (sel) {
     const nm = M.personName(app.doc, sel);
     const c = await chooseOne('Add a character', null, [
-      ['child', `Child of ${nm}`], ['partner', `Partner of ${nm}`], ['parent', `Parent of ${nm}`],
+      ['child', `Child of ${nm}`], ['partner', `Partner of ${nm}`], ['parent', `Parents of ${nm}`],
       ['sibling', `Brother or sister of ${nm}`], ['none', 'Someone not connected yet'],
     ]);
     if (c === undefined) return;
@@ -97,9 +97,73 @@ export async function addPersonFlow(app) {
   setTimeout(() => document.querySelector('.name-input')?.focus(), 80);
 }
 
+// Add one or both parents in a single step. Each name can be a new character or
+// someone already in the tree (suggested as she types).
+export async function addParentsFlow(app, childId) {
+  const doc = app.doc;
+  const nm = M.personName(doc, childId);
+  const people = M.live(doc.people).filter((p) => p.id !== childId && p.name);
+  const byName = (name) => {
+    const n = name.trim().toLowerCase();
+    return n ? people.find((p) => p.name.trim().toLowerCase() === n) : null;
+  };
+  // A parent already there on their own: just add the other one.
+  const single = M.parentUnionsOf(doc, childId).find((u) => u.partners.length === 1);
+  const listId = 'peopleNames';
+  const list = h('datalist', { id: listId }, people.map((p) => h('option', { value: p.name })));
+  const slot = (label, placeholder) => {
+    const hint = h('span', { class: 'hint' });
+    const input = h('input', { list: listId, placeholder, autocomplete: 'off', oninput: () => {
+      const v = input.value.trim();
+      hint.textContent = !v ? '' : byName(v) ? '✓ Already in the tree: will be linked' : '+ New character';
+    } });
+    return { input, el: h('label', {}, label, input, hint) };
+  };
+  const a = single ? null : slot('Parent', 'Name, e.g. Molly Weasley');
+  const b = slot(single ? `Other parent (with ${M.personName(doc, single.partners[0])})` : 'Other parent (optional)', 'Name');
+  const type = h('select', {}, opts(M.UNION_TYPES, 'married'));
+  const status = h('select', {}, opts(M.UNION_STATUS, 'together'));
+  const kind = h('select', {}, opts(M.CHILD_KINDS.map(([v, l]) => [v, l === 'Birth' ? 'Birth child' : `${l} child`]), 'birth'));
+  const body = h('div', { class: 'sec' }, list, a && a.el, b.el,
+    h('div', { class: 'row2' }, h('label', {}, 'The parents are', type), h('label', {}, 'Status', status)),
+    h('label', {}, `${nm} is their`, kind));
+  setTimeout(() => (a || b).input.focus(), 60);
+  const r = await modal({ title: `Parents of ${nm}`, body, buttons: [{ label: 'Cancel', value: '' }, { label: 'Add', value: 'ok', primary: true }] });
+  if (!r) return;
+
+  const resolve = (name) => {
+    name = name.trim();
+    if (!name) return null;
+    const found = byName(name);
+    return found ? found.id : M.addPerson(doc, { name }).id;
+  };
+  const pA = single ? single.partners[0] : resolve(a.input.value);
+  const pB = resolve(b.input.value);
+  if (!pA && !pB) return;
+  if (pA && pB && pA === pB) return toast('The two parents need to be different characters');
+  let u;
+  if (single && pB) {
+    u = M.linkParent(doc, childId, pB);
+  } else if (pA && pB) {
+    u = M.addChildToCouple(doc, pA, pB, childId, kind.value);
+  } else {
+    u = M.linkChild(doc, pA || pB, childId, null, kind.value);
+  }
+  if (u) {
+    const patch = { status: status.value };
+    if (u.partners.length === 2) patch.type = type.value;
+    M.updateUnion(doc, u.id, patch);
+    M.setChildKind(doc, u.id, childId, kind.value);
+  }
+  app.commit();
+  toast(pA && pB ? 'Parents added' : 'Parent added');
+  if (app.refreshSheet) app.refreshSheet();
+}
+
 async function addRelative(app, id, kind) {
   const doc = app.doc;
   const nm = M.personName(doc, id);
+  if (kind === 'parent') return addParentsFlow(app, id);
   let other = null;
   if (kind === 'child') {
     const partners = M.unionsOf(doc, id).filter((u) => u.partners.length === 2).map((u) => u.partners.find((x) => x !== id));
@@ -344,7 +408,7 @@ function relationships(app, id, rebuild) {
   }
 
   box.append(h('h3', {}, 'Add'), h('div', { class: 'add-rel' },
-    h('button', { class: 'btn', type: 'button', onclick: () => addRelative(app, id, 'parent') }, '+ Parent'),
+    h('button', { class: 'btn', type: 'button', onclick: () => addRelative(app, id, 'parent') }, '+ Parents'),
     h('button', { class: 'btn', type: 'button', onclick: () => addRelative(app, id, 'partner') }, '+ Partner'),
     h('button', { class: 'btn', type: 'button', onclick: () => addRelative(app, id, 'child') }, '+ Child'),
     h('button', { class: 'btn', type: 'button', onclick: () => addRelative(app, id, 'sibling') }, '+ Brother / sister'),
@@ -412,7 +476,9 @@ export function openTreeSettings(app) {
     kids.push(h('div', { class: 'sec' }, h('h3', {}, 'What the lines mean'), legend()));
 
     kids.push(h('div', { class: 'sec' }, h('h3', {}, 'Layout'),
-      h('p', { class: 'hint' }, 'Drag characters to move them. This puts everyone back in their automatic place.'),
+      h('label', { class: 'toggle-row' }, 'Snap characters to the grid',
+        h('input', { type: 'checkbox', checked: m.snap !== false, onchange: (e) => { setM({ snap: e.target.checked }); } })),
+      h('p', { class: 'hint' }, 'Drag characters to move them. Tidy up puts everyone back in their automatic place.'),
       h('button', { class: 'btn', type: 'button', onclick: () => { M.clearPositions(doc); app.commit(); app.vp.fit(app.lay.bounds); toast('Tidied up'); } }, 'Tidy up layout')));
 
     kids.push(h('div', { class: 'sec danger-zone' },

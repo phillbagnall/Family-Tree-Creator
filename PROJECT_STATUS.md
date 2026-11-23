@@ -2,12 +2,12 @@
 name: Family Tree Creator
 phase: Testing
 priority: medium
-updated: 2026-11-23
+updated: 2026-11-24
 blocked: false
 links: [https://github.com/phillbagnall/Family-Tree-Creator, https://phillbagnall.github.io/Family-Tree-Creator/]
 ---
 ## Summary
-A web app (installable on PC, iPhone and Android) for building family trees of characters in books, made for Phill's step-daughter. Trees are vector-drawn so zoom stays sharp, with photos, dates, notes, groups/houses, custom links, search, spoiler protection, PNG/PDF/SVG export, colour themes with gradient backgrounds (per tree, plus a usual look that syncs across devices), photo cropping and offline use. Each tree syncs to the private GitHub repo phillbagnall/family-trees, so the same trees appear on every device. First version is live; next is setting up her devices and trying it with a real book.
+A web app (installable on PC, iPhone and Android) for building family trees of characters in books, made for Phill's step-daughter. Trees are vector-drawn so zoom stays sharp, with photos, dates, notes, groups/houses, custom links, search, spoiler protection, PNG/PDF/SVG export, colour themes with gradient backgrounds (per tree, plus a usual look that syncs across devices), photo cropping, snap-to-grid layout, adding both parents in one step and offline use. Each tree syncs to the private GitHub repo phillbagnall/family-trees, so the same trees appear on every device. First version is live; next is setting up her devices and trying it with a real book.
 
 ## Next steps
 - [ ] Create a fine-grained GitHub access key for phillbagnall/family-trees (Contents: read and write)
@@ -39,6 +39,10 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
 - 2026-11-23: Photo cropper — drag, pinch or slider to fit a picture in the circle
   - Build: v3 (sw.js VERSION v3) — photo cropping
   - ![Photo cropper](docs/visuals/2026-11-23-photo-cropper.jpg)
+- 2026-11-24: Add both parents in one dialog (existing or new names); cards snap to a dot grid that moves with the tree
+  - Build: v5 (sw.js VERSION v5) — snap to grid, add parents
+  - ![Add parents dialog](docs/visuals/2026-11-24-add-parents.jpg)
+  - ![Dragged card snapped to grid](docs/visuals/2026-11-24-snap-grid.jpg)
 
 ## Decisions
 - 2026-11-23: Web app (PWA) rather than native apps, so one codebase covers PC, iPhone and Android with no app-store costs
@@ -47,6 +51,7 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
 - 2026-11-23: App code repo is public (free GitHub Pages); tree data stays in a separate private repo
 - 2026-11-23: Default UI changed from brown/orange to blue; themes are per tree (synced), the usual look is per device
 - 2026-11-23: Usual look syncs via settings.json (newest edit wins); light/dark mode stays per device because it usually follows each device's own setting
+- 2026-11-24: Grid is 24px; cards are 9x3 grid squares and the automatic layout also sits on the grid; snapping can be switched off per tree
 
 ## Log
 - 2026-11-23: Added to the project dashboard
@@ -54,3 +59,4 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
 - 2026-11-23: Added themes (button colours, gradient backgrounds, per-tree looks) and switched default UI to blue
 - 2026-11-23: Added photo cropping (originals kept so photos can be re-cropped) and a replace-access-key option
 - 2026-11-23: Usual look now syncs across devices
+- 2026-11-24: Snap-to-grid (grid now pans/zooms with the tree) and add-both-parents dialog; partners of one person now stay grouped in the layout

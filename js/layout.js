@@ -11,12 +11,18 @@
 // 4. Apply any nudges she made by dragging (stored as offsets from the
 //    automatic spot, so they travel with the family when the tree grows).
 
-export const CARD_W = 224;
+// Everything lines up on a 24px grid: cards are 9 x 3 grid squares.
+export const GRID = 24;
+export const CARD_W = 216;
 export const CARD_H = 72;
-export const ROW_H = 176;
+export const ROW_H = 168;
 const GAP_PARTNER = 48;
-const GAP_SIB = 26;
-const GAP_FAMILY = 64;
+const GAP_SIB = 32;
+const GAP_FAMILY = 72;
+
+// Move a card centre so the card's corners sit on grid dots.
+const snapX = (x) => Math.round((x - CARD_W / 2) / GRID) * GRID + CARD_W / 2;
+const snapY = (y) => Math.round((y - CARD_H / 2) / GRID) * GRID + CARD_H / 2;
 
 function pav(desired, gaps) {
   const n = desired.length;
@@ -40,7 +46,7 @@ function pav(desired, gaps) {
   return out;
 }
 
-export function layout(view, offsets = {}) {
+export function layout(view, offsets = {}, { snap = true } = {}) {
   const ids = Object.keys(view.people);
   const partnerU = new Map(ids.map((id) => [id, []]));
   const parentU = new Map(ids.map((id) => [id, []]));
@@ -133,7 +139,7 @@ export function layout(view, offsets = {}) {
     for (const id of row) {
       const last = out[out.length - 1];
       const prev = last && last[last.length - 1];
-      if (prev && (isPartner(prev, id) || isSibling(prev, id))) last.push(id);
+      if (prev && (last.some((m) => isPartner(m, id)) || isSibling(prev, id))) last.push(id);
       else out.push([id]);
     }
     return out;
@@ -219,7 +225,7 @@ export function layout(view, offsets = {}) {
       let i = 0;
       while (i < row.length) {
         let j = i + 1;
-        while (j < row.length && partnerU.get(row[j]).some((u) => u.partners.includes(row[j - 1]))) j++;
+        while (j < row.length && row.slice(i, j).some((m) => partnerU.get(row[j]).some((u) => u.partners.includes(m)))) j++;
         const run = row.slice(i, j);
         const seen = new Set();
         let shift = 0, n = 0;
@@ -241,13 +247,15 @@ export function layout(view, offsets = {}) {
   upPass();
 
   // ---- 4. final positions (card centres) ----
+  // Automatic spots always sit on the grid; dragged ones snap too unless snapping is off.
+  const auto = {};
   const pos = {};
   for (const id of ids) {
+    auto[id] = { x: snapX(x[id]), y: snapY(gen[id] * ROW_H) };
     const o = offsets[id];
-    pos[id] = { x: x[id] + (o ? o.x : 0), y: gen[id] * ROW_H + (o ? o.y : 0) };
+    const px = auto[id].x + (o ? o.x : 0), py = auto[id].y + (o ? o.y : 0);
+    pos[id] = snap ? { x: snapX(px), y: snapY(py) } : { x: px, y: py };
   }
-  const auto = {};
-  for (const id of ids) auto[id] = { x: x[id], y: gen[id] * ROW_H };
 
   const unionPts = {};
   for (const u of view.unions) {

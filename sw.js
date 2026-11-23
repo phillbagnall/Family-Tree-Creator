@@ -2,7 +2,7 @@
 // syncs with GitHub separately; requests to GitHub are never cached here.
 // Bump VERSION whenever app files change so devices pick up the update.
 
-const VERSION = 'v4';
+const VERSION = 'v5';
 const CACHE = `ftc-${VERSION}`;
 const FILES = [
   './',

@@ -5,7 +5,7 @@ import * as store from './store.js';
 import * as sync from './sync.js';
 import * as M from './model.js';
 import { GitHub } from './github.js';
-import { layout } from './layout.js';
+import { layout, GRID } from './layout.js';
 import { treeMarkup, defsMarkup, initials } from './render.js';
 import { Viewport } from './viewport.js';
 import { $, h, icon, openSheet, closeSheet, sheetOpen, modal, confirmBox, askText, toast, timeAgo, isPhone } from './ui.js';
@@ -332,10 +332,22 @@ sync.on('changed', async (id) => {
 
 const svg = $('canvas');
 const world = $('world');
-$('canvasDefs').innerHTML = defsMarkup();
+// Dot grid drawn in tree space (moves and zooms with the cards, which snap to it).
+$('canvasDefs').innerHTML = defsMarkup()
+  + `<pattern id="dotgrid" patternUnits="userSpaceOnUse" width="${GRID}" height="${GRID}"><circle id="gridDot" cx="${GRID / 2}" cy="${GRID / 2}" r="1.3" style="fill: var(--dots)"/></pattern>`;
+const gridPattern = $('dotgrid');
+const gridDot = $('gridDot');
+function moveGrid({ x, y, k }) {
+  gridPattern.setAttribute('patternTransform', `translate(${x},${y}) scale(${k}) translate(${-GRID / 2},${-GRID / 2})`);
+  gridDot.setAttribute('r', String(Math.min(2.4, 1.4 / k)));
+  $('gridRect').style.opacity = k < 0.3 ? String(Math.max(0, (k - 0.15) / 0.15)) : '1';
+}
+
+const snapping = () => !app.doc || app.doc.meta.snap !== false;
 
 let drag = null;
 app.vp = new Viewport(svg, world, {
+  changed: moveGrid,
   tap(id) {
     if (id) app.select(id, { open: true });
     else if (app.selected) { app.selected = null; closeSheet(); render(); }
@@ -352,8 +364,11 @@ app.vp = new Viewport(svg, world, {
   dragEnd(id) {
     if (!drag || !drag.cur) { drag = null; return; }
     let { x, y } = drag.cur;
-    // Snap back to the automatic spot when dropped close to it.
-    if (Math.hypot(x, y) < 14) x = y = 0;
+    if (snapping()) {
+      // Automatic spots are on the grid, so whole-square offsets keep the card on it.
+      x = Math.round(x / GRID) * GRID;
+      y = Math.round(y / GRID) * GRID;
+    } else if (Math.hypot(x, y) < 14) x = y = 0; // back to its automatic spot
     if (x === 0 && y === 0) M.setPosition(app.doc, id, 0, 0);
     else M.setPosition(app.doc, id, x, y);
     drag = null;
@@ -391,7 +406,7 @@ function photoHref(id) {
 export function render() {
   if (!app.doc) return;
   app.view = M.visibleView(app.doc);
-  app.lay = layout(app.view, offsets());
+  app.lay = layout(app.view, offsets(), { snap: snapping() });
   world.innerHTML = treeMarkup({
     doc: app.doc, view: app.view, lay: app.lay, selected: app.selected, matches: app.matches,
     colours: themeColours(), photo: photoHref,

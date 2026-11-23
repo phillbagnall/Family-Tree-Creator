@@ -177,11 +177,8 @@ input[type="color"] { padding: 2px; width: 44px; height: 44px; }
   background: var(--canvas-bg);
   text-rendering: geometricPrecision;
 }
-#canvas.dotted {
-  background-image: radial-gradient(circle, var(--dots) 1.2px, transparent 1.4px), var(--canvas-bg);
-  background-size: 24px 24px, 100% 100%;
-  text-rendering: geometricPrecision;
-}
+#canvas:not(.dotted) #gridRect { display: none; }
+#gridRect { pointer-events: none; }
 #canvas:active { cursor: grabbing; }
 #canvas .card { cursor: pointer; }
 .empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--muted); pointer-events: none; padding: 16px; text-align: center; }
