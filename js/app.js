@@ -5,7 +5,7 @@ import * as store from './store.js';
 import * as sync from './sync.js';
 import * as M from './model.js';
 import { GitHub } from './github.js';
-import { layout, GRID, CARD_W, CARD_H } from './layout.js';
+import { layout, GRID, CARD_W, CARD_H, ROW_H } from './layout.js';
 import { treeMarkup, defsMarkup, initials } from './render.js';
 import { Viewport } from './viewport.js';
 import { $, h, icon, openSheet, closeSheet, sheetOpen, modal, confirmBox, askText, toast, timeAgo, isPhone } from './ui.js';
@@ -335,7 +335,9 @@ sync.on('settings', () => {
 sync.on('changed', async (id) => {
   if (app.doc && app.doc.id === id) {
     const rec = await store.getTree(id);
+    undoSettle();
     app.doc = M.merge(app.doc, rec.doc);
+    undoRebase();
     applyTreeLook();
     render();
     if (sheetOpen() && app.refreshSheet) app.refreshSheet();
@@ -450,6 +452,7 @@ app.vp = new Viewport(svg, world, {
     drag.d = { x: dx, y: dy };
     requestRender();
   },
+  dragCancel() { drag = null; requestRender(); },
   dragEnd() {
     if (!drag || !drag.d) { drag = null; return; }
     let { x: dx, y: dy } = drag.d;
@@ -479,7 +482,7 @@ function freeSpot(moved) {
   const offs = {};
   for (const [id, o] of Object.entries(app.doc.positions)) if (!o.deleted && (o.x || o.y)) offs[id] = o;
   Object.assign(offs, moved);
-  const L = layout(app.view, offs, { snap: snapping() });
+  const L = layout(app.view, offs, layOpts());
   const movedSet = new Set(ids);
   const still = Object.keys(L.pos).filter((id) => !movedSet.has(id)).map((id) => L.pos[id]);
   const fits = (sx, sy) => ids.every((id) => {
@@ -498,6 +501,71 @@ function freeSpot(moved) {
   if (ok) return { x: ok.x, y: ok.y };
   return { x: 0, y: 0 };
 }
+
+// Positions she drags are stored as offsets from the automatic layout. Adding, linking or
+// removing someone reshuffles that layout, which used to slide her arranged cards around.
+// keepPlaces() re-measures the offsets so every card she has placed stays exactly where it
+// was. Pass the positions from before the change (app.lay.pos).
+const layOpts = () => ({ snap: snapping(), version: app.doc.meta.layout || 1 });
+const dragged = (id) => { const o = app.doc.positions[id]; return !!(o && !o.deleted && (o.x || o.y)); };
+
+// Once she has arranged anything by hand, everyone stays put (cards she never moved too:
+// letting just those reflow could drop them on top of her arranged ones). A tree nobody
+// has rearranged keeps flowing automatically.
+app.keepPlaces = (before, skip = new Set()) => {
+  app.view = M.visibleView(app.doc);
+  if (!Object.keys(before).some(dragged)) return;
+  const L = layout(app.view, offsets(), layOpts());
+  for (const id of Object.keys(L.pos)) {
+    if (skip.has(id) || !before[id]) continue;
+    const o = app.doc.positions[id];
+    const ox = o && !o.deleted ? o.x || 0 : 0, oy = o && !o.deleted ? o.y || 0 : 0;
+    const nx = before[id].x - L.auto[id].x, ny = before[id].y - L.auto[id].y;
+    if (nx !== ox || ny !== oy) M.setPosition(app.doc, id, nx, ny);
+  }
+};
+
+// Put newly added characters beside the relative they were added from. In a tree still in
+// its automatic layout, the layout already does this; in one she has arranged by hand, aim
+// for the right spot next to the family, then nudge clear of other cards.
+app.placeNear = (newIds, anchorId, kind, before) => {
+  const arranged = Object.keys(before).some(dragged);
+  app.keepPlaces(before, new Set(newIds));
+  if (!arranged) return;
+  const L = layout(app.view, offsets(), layOpts());
+  const at = (id) => L.pos[id];
+  newIds = newIds.filter((id) => L.pos[id]);
+  if (!newIds.length) return;
+  const a = anchorId ? at(anchorId) : null;
+  if (!a) { // not connected to anyone: just keep it off other cards
+    const moved = { [newIds[0]]: { x: 0, y: 0 } };
+    const sh = freeSpot(moved);
+    if (sh.x || sh.y) M.setPosition(app.doc, newIds[0], sh.x, sh.y);
+    return;
+  }
+  const step = CARD_W + 48;
+  const moved = {};
+  if (kind === 'child') {
+    const id = newIds[0];
+    const u = M.parentUnionsOf(app.doc, id)[0];
+    const parents = (u ? u.partners : [anchorId]).filter((p) => at(p));
+    const x = parents.reduce((s, p) => s + at(p).x, 0) / parents.length;
+    const y = Math.max(...parents.map((p) => at(p).y)) + ROW_H;
+    moved[id] = { x, y };
+  } else if (kind === 'parent') {
+    const others = M.parentUnionsOf(app.doc, anchorId).flatMap((u) => u.partners).filter((p) => !newIds.includes(p) && at(p));
+    const y = a.y - ROW_H;
+    if (newIds.length === 2) { moved[newIds[0]] = { x: a.x - step / 2, y }; moved[newIds[1]] = { x: a.x + step / 2, y }; }
+    else if (others.length) { const o = at(others[0]); moved[newIds[0]] = { x: o.x + (a.x >= o.x ? step : -step), y: o.y }; }
+    else moved[newIds[0]] = { x: a.x, y };
+  } else {
+    moved[newIds[0]] = { x: a.x + (kind === 'sibling' ? CARD_W + 32 : step), y: a.y };
+  }
+  // Turn the wanted spots into offsets, then nudge clear of other cards.
+  for (const [id, p] of Object.entries(moved)) moved[id] = { x: p.x - L.auto[id].x, y: p.y - L.auto[id].y };
+  const shift = freeSpot(moved);
+  for (const [id, o] of Object.entries(moved)) M.setPosition(app.doc, id, o.x + shift.x, o.y + shift.y);
+};
 
 function offsets() {
   const out = {};
@@ -529,7 +597,7 @@ function photoHref(id) {
 export function render() {
   if (!app.doc) return;
   app.view = M.visibleView(app.doc);
-  app.lay = layout(app.view, offsets(), { snap: snapping() });
+  app.lay = layout(app.view, offsets(), { snap: snapping(), version: app.doc.meta.layout || 1 });
   world.innerHTML = treeMarkup({
     doc: app.doc, view: app.view, lay: app.lay, selected: app.selected, multi: app.multi, matches: app.matches,
     colours: themeColours(), photo: photoHref,
@@ -555,9 +623,89 @@ export function requestRender() {
   raf = requestAnimationFrame(() => { raf = 0; render(); });
 }
 
+// ---------------- undo / redo ----------------
+// Changes made close together (typing a name, one drag) count as one step.
+const undo = { base: null, burst: null, past: [], future: [] };
+const UNDO_LIMIT = 60;
+
+function undoReset() {
+  clearTimeout(undo.burst);
+  undo.burst = null;
+  undo.base = app.doc ? M.snapshot(app.doc) : null;
+  undo.past = [];
+  undo.future = [];
+  undoButtons();
+}
+
+// Close the current step: record what changed since the last one.
+function undoSettle() {
+  if (!undo.burst) return;
+  clearTimeout(undo.burst);
+  undo.burst = null;
+  const now = M.snapshot(app.doc);
+  const changes = M.diffDocs(undo.base, now);
+  undo.base = now;
+  if (changes.length) {
+    undo.past.push(changes);
+    if (undo.past.length > UNDO_LIMIT) undo.past.shift();
+    undo.future = [];
+  }
+  undoButtons();
+}
+
+function undoNote() {
+  if (!undo.base) undo.base = M.snapshot(app.doc);
+  clearTimeout(undo.burst);
+  undo.burst = setTimeout(undoSettle, 800);
+  $('undoBtn').disabled = false;
+}
+
+// Something arrived from another device: keep the steps, but start comparing from here.
+function undoRebase() {
+  undoSettle();
+  undo.base = M.snapshot(app.doc);
+}
+
+function undoButtons() {
+  $('undoBtn').disabled = !undo.past.length && !undo.burst;
+  $('redoBtn').disabled = !undo.future.length;
+  $('redoBtn').hidden = !undo.future.length;
+}
+
+function undoStep(back) {
+  if (!app.doc) return;
+  undoSettle();
+  const from = back ? undo.past : undo.future;
+  const step = from.pop();
+  if (!step) { undoButtons(); return toast(back ? 'Nothing to undo' : 'Nothing to redo'); }
+  M.applyChanges(app.doc, step, back ? 'before' : 'after');
+  (back ? undo.future : undo.past).push(step);
+  undo.base = M.snapshot(app.doc);
+  undoButtons();
+  applyTreeLook();
+  for (const id of [...app.multi]) if (!app.doc.people[id] || app.doc.people[id].deleted) app.multi.delete(id);
+  if (app.selected && (!app.doc.people[app.selected] || app.doc.people[app.selected].deleted)) {
+    app.selected = null;
+    closeSheet();
+  } else if (sheetOpen() && app.refreshSheet) {
+    document.activeElement?.blur();
+    app.refreshSheet();
+  }
+  render();
+  clearTimeout(saveTimer);
+  const doc = app.doc;
+  saveTimer = setTimeout(() => sync.saveLocal(doc), 300);
+  toast(back ? 'Undone' : 'Redone', 1200);
+}
+app.undo = () => undoStep(true);
+app.redo = () => undoStep(false);
+$('undoBtn').addEventListener('click', app.undo);
+$('redoBtn').addEventListener('click', app.redo);
+
 let saveTimer;
 // Re-draw and save after any change.
 export function commit() {
+  undoNote();
   render();
   clearTimeout(saveTimer);
   const doc = app.doc;
@@ -589,6 +737,7 @@ async function openTree(id) {
   const fixedNames = M.capitaliseAllNames(app.doc);
   const fixedCouples = M.mergeDuplicateCouples(app.doc);
   if (fixedNames || fixedCouples) sync.saveLocal(app.doc);
+  undoReset();
   app.vp.selectMode = false;
   app.multi.clear();
   $('selectMode').setAttribute('aria-pressed', 'false');
@@ -747,6 +896,8 @@ document.addEventListener('keydown', (e) => {
   const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName);
   if ((e.ctrlKey || e.metaKey) && e.key === 'f') { e.preventDefault(); $('searchBox').classList.add('open'); $('searchInput').focus(); }
   if (typing) return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); return e.shiftKey ? app.redo() : app.undo(); }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); return app.redo(); }
   if (e.key === 'Escape' && (app.vp.selectMode || app.multi.size) && !sheetOpen()) setSelectMode(false);
   if (e.key === '+' || e.key === '=') app.vp.zoomBy(1.25);
   if (e.key === '-') app.vp.zoomBy(0.8);

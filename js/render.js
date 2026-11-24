@@ -67,6 +67,31 @@ function partnerLine(u, a, b, c) {
   return parts.join('');
 }
 
+// A couple's line routed under their row (see layout "bridge"): down from each card's
+// bottom edge, across, and up into the other card.
+function bridgeLine(u, a, b, y, c) {
+  if (a.x > b.x) [a, b] = [b, a];
+  const inset = CARD_W / 2 - 30;
+  const ax = a.x + inset, bx = b.x - inset;
+  const ay = a.y + CARD_H / 2, by = b.y + CARD_H / 2;
+  const parts = [];
+  const path = (o, dash, w = 2) =>
+    `<path d="M${ax + o},${ay} V${y + o} H${bx - o} V${by}" stroke="${c.line}" stroke-width="${w}" fill="none" stroke-linejoin="round" ${dash ? `stroke-dasharray="${dash}"` : ''} stroke-linecap="round"/>`;
+  if (u.type === 'married') parts.push(path(-3), path(3));
+  else if (u.type === 'engaged') parts.push(path(0, '8 6'));
+  else if (u.type === 'affair') parts.push(path(0, '1 6', 2.5));
+  else if (u.type === 'unknown') parts.push(path(0, '3 4', 1.5));
+  else parts.push(path(0));
+  if (u.status === 'divorced' || u.status === 'separated') {
+    const mx = (ax + bx) / 2;
+    for (const s of u.status === 'divorced' ? [-5, 5] : [0]) {
+      const cx = mx + s + 18;
+      parts.push(`<line x1="${cx - 4}" y1="${y - 9}" x2="${cx + 4}" y2="${y + 9}" stroke="${c.line}" stroke-width="2"/>`);
+    }
+  }
+  return parts.join('');
+}
+
 function childLines(u, pt, pos, c, preferredBus, childX) {
   if (!u.children.length) return '';
   const tops = u.children.map((ch) => ({ ...ch, x: (childX && childX[`${u.id}:${ch.id}`]) ?? pos[ch.id].x, top: pos[ch.id].y - CARD_H / 2 }));
@@ -84,6 +109,45 @@ function childLines(u, pt, pos, c, preferredBus, childX) {
   return s;
 }
 
+// ---------- little markers on the top edge of a card ----------
+const GENDER_COLOUR = { female: '#d14d84', male: '#2f6fd6', other: '#8a52c8' };
+
+function genderGlyph(g, col) {
+  const st = `stroke="${col}" stroke-width="1.6" fill="none" stroke-linecap="round"`;
+  if (g === 'female') return `<circle cx="0" cy="-1.8" r="3.3" ${st}/><path d="M0,1.5 V6 M-2.2,4 H2.2" ${st}/>`;
+  if (g === 'male') return `<circle cx="-1.2" cy="1.2" r="3.3" ${st}/><path d="M1.2,-1.2 L4.6,-4.6 M1.8,-4.6 H4.6 V-1.8" ${st}/>`;
+  return `<circle cx="0" cy="0" r="3" ${st}/><path d="M0,-3 V-6 M-1.6,-4.6 H1.6 M0,3 V6" ${st}/>`;
+}
+
+export const isDeceased = (p) => !!p.deceased || !!String(p.died || '').trim();
+
+// Short codes for groups: first letter, or first two when two groups share a first letter.
+function groupCodes(groups) {
+  const live = Object.values(groups).filter((g) => !g.deleted && g.name);
+  const first = (g) => g.name.trim()[0].toUpperCase();
+  const out = {};
+  for (const g of live) {
+    const clash = live.some((o) => o !== g && first(o) === first(g));
+    const n = g.name.trim();
+    out[g.id] = clash ? n[0].toUpperCase() + (n[1] || '').toLowerCase() : first(g);
+  }
+  return out;
+}
+
+function badges(p, pg, codes, c) {
+  const items = [];
+  if (GENDER_COLOUR[p.gender]) items.push((x) => `<g transform="translate(${x},0)"><title>${esc(p.gender === 'other' ? (p.genderCustom || 'Other') : p.gender === 'female' ? 'Female' : 'Male')}</title><circle r="9" fill="${c.card}" stroke="${GENDER_COLOUR[p.gender]}" stroke-width="1.4"/>${genderGlyph(p.gender, GENDER_COLOUR[p.gender])}</g>`);
+  if (isDeceased(p)) items.push((x) => `<g transform="translate(${x},0)"><title>Died</title><circle r="9" fill="${c.card}" stroke="${c.muted}" stroke-width="1.4"/><path d="M0,-5.5 V5.5 M-3.4,-2 H3.4" stroke="${c.text}" stroke-width="1.7" stroke-linecap="round"/></g>`);
+  for (const g of pg.slice(0, 2)) {
+    const code = codes[g.id] || '?';
+    const w = code.length > 1 ? 24 : 18;
+    items.push((x) => `<g transform="translate(${x},0)"><title>${esc(g.name)}</title><rect x="${-w / 2}" y="-9" width="${w}" height="18" rx="9" fill="${esc(g.colour)}"/><text y="4" text-anchor="middle" font-family="${UI_FONT}" font-size="10.5" font-weight="700" fill="#fff">${esc(code)}</text></g>`);
+  }
+  let x = CARD_W - 18, out = '';
+  for (const it of items) { out += it(x); x -= 23; }
+  return out;
+}
+
 function linkPath(l, a, b) {
   const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
   const dx = b.x - a.x, dy = b.y - a.y;
@@ -99,6 +163,8 @@ export function treeMarkup({ doc, view, lay, selected, multi, matches, colours =
   const c = colours;
   const pos = lay.pos;
   const groups = doc.groups;
+  const codes = groupCodes(groups);
+  const showBadges = doc.meta.badges !== false;
   const dim = (id) => (matches && !matches.has(id) ? ' opacity="0.22"' : '');
   let back = '';
   let mid = '';
@@ -114,11 +180,23 @@ export function treeMarkup({ doc, view, lay, selected, multi, matches, colours =
     }
   }
 
+  // Lines of the selected character are drawn on top in the accent colour, so a long line
+  // can be followed across the tree.
+  const focus = selected && !(multi && multi.size) ? selected : null;
+  let hot = '';
   for (const u of view.unions) {
     const pt = lay.unionPts[u.id];
-    if (u.partners.length === 2) mid += partnerLine(u, pos[u.partners[0]], pos[u.partners[1]], c);
-    mid += childLines(u, pt, pos, c, lay.busY && lay.busY[u.id], lay.childX);
+    const lit = focus && (u.partners.includes(focus) || u.children.some((ch) => ch.id === focus));
+    const lc = lit ? { ...c, line: c.accent } : c;
+    let s = '';
+    if (u.partners.length === 2) {
+      const br = lay.bridge && lay.bridge[u.id];
+      s += br ? bridgeLine(u, pos[u.partners[0]], pos[u.partners[1]], br.y, lc) : partnerLine(u, pos[u.partners[0]], pos[u.partners[1]], lc);
+    }
+    s += childLines(u, pt, pos, lc, lay.busY && lay.busY[u.id], lay.childX);
+    if (lit) hot += s; else mid += s;
   }
+  mid += hot;
 
   for (const id of Object.keys(view.people)) {
     const p = view.people[id];
@@ -143,12 +221,12 @@ export function treeMarkup({ doc, view, lay, selected, multi, matches, colours =
     if (sub[0]) lines += `<text x="${tx}" y="49" font-family="${UI_FONT}" font-size="11.5" fill="${c.muted}" ${p.aka && sub[0] === p.aka ? 'font-style="italic"' : ''}>${esc(fit(sub[0], `11.5px ${UI_FONT}`, maxW))}</text>`;
     if (sub[1]) lines += `<text x="${tx}" y="63" font-family="${UI_FONT}" font-size="11.5" fill="${c.muted}">${esc(fit(sub[1], `11.5px ${UI_FONT}`, maxW))}</text>`;
     const notes = p.notes && p.notes.trim()
-      ? `<path d="M${CARD_W - 18},8 h10 v10 h-10z M${CARD_W - 16},11.5 h6 M${CARD_W - 16},14.5 h6" stroke="${c.muted}" stroke-width="1.2" fill="none"/>` : '';
+      ? `<path d="M${CARD_W - 18},${CARD_H - 18} h10 v10 h-10z M${CARD_W - 16},${CARD_H - 14.5} h6 M${CARD_W - 16},${CARD_H - 11.5} h6" stroke="${c.muted}" stroke-width="1.2" fill="none"/>` : '';
     cards += `<g class="card" data-id="${id}" transform="translate(${gx},${gy})"${dim(id)}>`
       + `<rect x="1" y="3" width="${CARD_W}" height="${CARD_H}" rx="12" fill="#000" fill-opacity="0.07"/>`
       + `<g clip-path="url(#cardClip)"><rect width="${CARD_W}" height="${CARD_H}" fill="${c.card}"/>${stripes}</g>`
       + `<rect width="${CARD_W}" height="${CARD_H}" rx="12" fill="none" stroke="${sel ? c.accent : c.cardLine}" stroke-width="${sel ? 3 : 1.2}"/>`
-      + photoEl + lines + notes + '</g>';
+      + photoEl + lines + notes + (showBadges ? badges(p, pg, codes, c) : '') + '</g>';
   }
 
   return `<g class="links">${back}</g><g class="lines">${mid}</g><g class="cards">${cards}</g><g class="labels">${labels}</g>`;

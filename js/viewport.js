@@ -19,13 +19,17 @@ export class Viewport {
     svg.addEventListener('pointerup', (e) => this.up(e));
     svg.addEventListener('pointercancel', (e) => this.up(e, true));
     svg.addEventListener('wheel', (e) => this.wheel(e), { passive: false });
-    // Safari trackpad pinch
+    // Safari trackpad pinch. iPhone Safari also sends these for a two-finger pinch on the
+    // screen, which the pointer code below already handles: zooming twice around two
+    // different points made the zoom drift away from her fingers, so ignore them then.
     svg.addEventListener('gesturestart', (e) => { e.preventDefault(); this.gk = this.t.k; });
     svg.addEventListener('gesturechange', (e) => {
       e.preventDefault();
+      if (this.pointers.size || this.gk == null) return;
       const r = svg.getBoundingClientRect();
       this.zoomTo(this.gk * e.scale, e.clientX - r.left, e.clientY - r.top);
     });
+    svg.addEventListener('gestureend', (e) => { e.preventDefault(); this.gk = null; });
   }
 
   apply() {
@@ -131,7 +135,8 @@ export class Viewport {
       const p = this.local(e);
       this.gesture = { type: 'press', id: card ? card.dataset.id : null, start: p, last: p, t: performance.now(), moved: false, shift: e.shiftKey };
     } else if (this.pointers.size === 2) {
-      if (this.gesture && this.gesture.type === 'drag') this.h.dragEnd(this.gesture.id);
+      // A second finger means a pinch: drop any card drag the first finger had started.
+      if (this.gesture && this.gesture.type === 'drag') (this.h.dragCancel || this.h.dragEnd)(this.gesture.id);
       if (this.gesture && this.gesture.type === 'box') this.h.boxCancel();
       const [a, b] = [...this.pointers.values()];
       this.gesture = { type: 'pinch', dist: Math.hypot(a.x - b.x, a.y - b.y), k: this.t.k, mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };

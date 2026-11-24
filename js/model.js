@@ -124,6 +124,7 @@ export function newTree(name) {
       books: [],               // [{id, title}]
       progress: null,          // {book: bookId, chapter: number|null}
       spoilers: false,         // hide entries revealed after progress
+      layout: 2,               // automatic layout rules (older trees keep 1 until tidied up)
       deleted: false,
       updatedAt: t,
     },
@@ -473,4 +474,33 @@ export function summary(doc) {
     photos: people.filter((p) => p.photo).slice(0, 4).map((p) => p.photo),
     deleted: !!doc.meta.deleted,
   };
+}
+
+// ---------- undo ----------
+// One undo step is the list of entities a change touched, as they were before and after.
+// Undoing writes the old versions back with a fresh updatedAt, so the undo wins when the
+// tree syncs (an old timestamp would lose to the change it is undoing).
+
+export const snapshot = (doc) => JSON.parse(JSON.stringify(doc));
+
+export function diffDocs(a, b) {
+  const changes = [];
+  const same = (x, y) => JSON.stringify(x) === JSON.stringify(y);
+  if (!same(a.meta, b.meta)) changes.push({ c: 'meta', before: a.meta, after: b.meta });
+  for (const c of COLLECTIONS) {
+    for (const id of new Set([...Object.keys(a[c] || {}), ...Object.keys(b[c] || {})])) {
+      if (!same(a[c][id], b[c][id])) changes.push({ c, id, before: a[c][id], after: b[c][id] });
+    }
+  }
+  return changes;
+}
+
+export function applyChanges(doc, changes, which) {
+  const t = now();
+  for (const ch of changes) {
+    const v = ch[which];
+    if (ch.c === 'meta') doc.meta = { ...JSON.parse(JSON.stringify(v)), updatedAt: t };
+    else if (v === undefined) doc[ch.c][ch.id] = ch.c === 'positions' ? { deleted: true, updatedAt: t } : { id: ch.id, deleted: true, updatedAt: t };
+    else doc[ch.c][ch.id] = { ...JSON.parse(JSON.stringify(v)), updatedAt: t };
+  }
 }

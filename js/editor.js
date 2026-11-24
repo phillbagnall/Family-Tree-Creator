@@ -94,7 +94,9 @@ export async function addPersonFlow(app) {
     if (c === undefined) return;
     if (c !== 'none') return addRelative(app, sel, c);
   }
+  const placesBefore = app.lay.pos;
   const p = M.addPerson(app.doc, { name: '' });
+  app.placeNear([p.id], null, 'none', placesBefore);
   app.commit();
   app.select(p.id, { open: true, center: true });
   setTimeout(() => document.querySelector('.name-input')?.focus(), 80);
@@ -139,6 +141,8 @@ export async function addParentsFlow(app, childId) {
     const found = byName(name);
     return found ? found.id : M.addPerson(doc, { name: M.capitaliseName(name) }).id;
   };
+  const before = new Set(Object.keys(doc.people));
+  const placesBefore = app.lay.pos;
   const pA = single ? single.partners[0] : resolve(a.input.value);
   const pB = resolve(b.input.value);
   if (!pA && !pB) return;
@@ -155,6 +159,7 @@ export async function addParentsFlow(app, childId) {
     if (u.partners.length === 2) M.setRelationship(doc, u.id, rel.value);
     M.setChildKind(doc, u.id, childId, kind.value);
   }
+  app.placeNear([pA, pB].filter((x) => x && !before.has(x)), childId, 'parent', placesBefore);
   app.commit();
   toast(pA && pB ? 'Parents added' : 'Parent added');
   if (app.refreshSheet) app.refreshSheet();
@@ -177,6 +182,8 @@ async function addRelative(app, id, kind) {
   }
   const titles = { child: `Add a child of ${nm}`, partner: `Add a partner for ${nm}`, parent: `Add a parent of ${nm}`, sibling: `Add a brother or sister of ${nm}`, link: `Connect ${nm} to…` };
   const exclude = [id];
+  const before = new Set(Object.keys(doc.people));
+  const placesBefore = app.lay.pos;
   const newId = await choosePerson(app, { title: titles[kind], exclude });
   if (!newId) return;
   if (kind === 'child') M.linkChild(doc, id, newId, other || null);
@@ -188,6 +195,8 @@ async function addRelative(app, id, kind) {
     if (label === null) return;
     M.addLink(doc, id, newId, label);
   }
+  if (!before.has(newId)) app.placeNear([newId], id, kind, placesBefore);
+  else app.keepPlaces(placesBefore);
   app.commit();
   toast(`Added ${M.personName(doc, newId)}`);
   if (app.refreshSheet) app.refreshSheet();
@@ -260,13 +269,22 @@ export function openPerson(app, id) {
             drawGender();
             if (v === 'other') genderBox.querySelector('input')?.focus();
           } }, l))),
-        g === 'other' ? field(null, p.genderCustom, (v) => save({ genderCustom: v }), { placeholder: 'Describe it, e.g. non-binary, shapeshifter' }) : null);
+        ...(g === 'other' ? [field(null, p.genderCustom, (v) => save({ genderCustom: v }), { placeholder: 'Describe it, e.g. non-binary, shapeshifter' })] : []));
     };
     drawGender();
     kids.push(genderBox);
     kids.push(h('div', { class: 'row2' },
       field('Born', p.born, (v) => save({ born: v }), { placeholder: 'e.g. 1832' }),
-      field('Died', p.died, (v) => save({ died: v }), { placeholder: 'e.g. Third Age 3019' })));
+      field('Died', p.died, (v) => { save({ died: v }); drawDead(); }, { placeholder: 'e.g. Third Age 3019' })));
+    // For characters who die in the story without a date.
+    const deadBox = h('div');
+    const drawDead = () => {
+      const dated = !!String(p.died || '').trim();
+      deadBox.replaceChildren(h('label', { class: 'toggle-row' }, dated ? 'Has died (from the date above)' : 'Has died',
+        h('input', { type: 'checkbox', checked: dated || !!p.deceased, disabled: dated, onchange: (e) => save({ deceased: e.target.checked }) })));
+    };
+    drawDead();
+    kids.push(deadBox);
 
     // Other dates
     const events = h('div', { class: 'sec' });
@@ -323,7 +341,9 @@ export function openPerson(app, id) {
     kids.push(h('div', { class: 'sec danger-zone' },
       h('button', { class: 'btn danger', type: 'button', onclick: async () => {
         if (!(await confirmBox(`Delete ${p.name || 'this character'}?`, 'They will be removed from the tree along with their family links.', 'Delete', true))) return;
+        const placesBefore = app.lay.pos;
         M.deletePerson(doc, id);
+        app.keepPlaces(placesBefore);
         app.selected = null;
         closeSheet();
         app.commit();
@@ -345,7 +365,8 @@ export function openPerson(app, id) {
 function relationships(app, id, rebuild) {
   const doc = app.doc;
   const box = h('div', { class: 'sec' });
-  const changed = () => { app.commit(); rebuild(); };
+  // app.lay still holds the positions from before this change (it is redrawn by commit).
+  const changed = () => { app.keepPlaces(app.lay.pos); app.commit(); rebuild(); };
 
   // Parents
   const parentUs = M.parentUnionsOf(doc, id);
@@ -503,8 +524,10 @@ export function openTreeSettings(app) {
     kids.push(h('div', { class: 'sec' }, h('h3', {}, 'Layout'),
       h('label', { class: 'toggle-row' }, 'Snap characters to the grid',
         h('input', { type: 'checkbox', checked: m.snap !== false, onchange: (e) => { setM({ snap: e.target.checked }); } })),
+      h('label', { class: 'toggle-row' }, 'Show markers on cards (gender, died, groups)',
+        h('input', { type: 'checkbox', checked: m.badges !== false, onchange: (e) => { setM({ badges: e.target.checked }); } })),
       h('p', { class: 'hint' }, 'Drag characters to move them. Tidy up puts everyone back in their automatic place.'),
-      h('button', { class: 'btn', type: 'button', onclick: () => { M.clearPositions(doc); app.commit(); app.vp.fit(app.lay.bounds); toast('Tidied up'); } }, 'Tidy up layout')));
+      h('button', { class: 'btn', type: 'button', onclick: () => { M.clearPositions(doc); if ((doc.meta.layout || 1) < 2) M.setMeta(doc, { layout: 2 }); app.commit(); app.vp.fit(app.lay.bounds); toast('Tidied up'); } }, 'Tidy up layout')));
 
     kids.push(h('div', { class: 'sec' }, h('h3', {}, 'Ideas & problems'),
       h('button', { class: 'btn', type: 'button', onclick: () => openFeedback(app) }, '💡 Suggest an improvement')));
@@ -563,5 +586,8 @@ function legend() {
     row(ln('7 5'), 'Adopted child'),
     row(ln('2 5'), 'Step-child'),
     row(ln('10 4 2 4'), 'Foster child'),
-    row('<path d="M2,14 Q35,0 68,14" stroke="#9a4a8f" stroke-width="2.5" fill="none" stroke-dasharray="6 5"/>', 'Other connection (friend, rival…)'));
+    row('<path d="M2,14 Q35,0 68,14" stroke="#9a4a8f" stroke-width="2.5" fill="none" stroke-dasharray="6 5"/>', 'Other connection (friend, rival…)'),
+    row('<g transform="translate(14,10)"><circle r="8.5" fill="none" stroke="#d14d84" stroke-width="1.4"/><circle cy="-1.8" r="3.3" stroke="#d14d84" stroke-width="1.6" fill="none"/><path d="M0,1.5 V6 M-2.2,4 H2.2" stroke="#d14d84" stroke-width="1.6"/></g><g transform="translate(38,10)"><circle r="8.5" fill="none" stroke="#2f6fd6" stroke-width="1.4"/><circle cx="-1.2" cy="1.2" r="3.3" stroke="#2f6fd6" stroke-width="1.6" fill="none"/><path d="M1.2,-1.2 L4.6,-4.6 M1.8,-4.6 H4.6 V-1.8" stroke="#2f6fd6" stroke-width="1.6" fill="none"/></g>', 'Female, male'),
+    row('<g transform="translate(14,10)"><circle r="8.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M0,-5.5 V5.5 M-3.4,-2 H3.4" stroke="currentColor" stroke-width="1.7"/></g>', 'Has died'),
+    row('<rect x="5" y="1" width="18" height="18" rx="9" fill="#2f6aa8"/><text x="14" y="14" text-anchor="middle" font-size="10.5" font-weight="700" fill="#fff" font-family="sans-serif">T</text>', 'Group (first letter of its name)'));
 }

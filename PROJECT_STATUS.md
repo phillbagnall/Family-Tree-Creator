@@ -7,7 +7,7 @@ blocked: false
 links: [https://github.com/phillbagnall/Family-Tree-Creator, https://phillbagnall.github.io/Family-Tree-Creator/]
 ---
 ## Summary
-A web app (installable on PC, iPhone and Android) for building family trees of characters in books, made for Phill's step-daughter. Trees are vector-drawn so zoom stays sharp, with photos, dates, notes, groups/houses, custom links, search, spoiler protection, PNG/PDF/SVG export, colour themes with gradient backgrounds (per tree, plus a usual look that syncs across devices), photo cropping, snap-to-grid layout, adding both parents in one step, gender per character, an in-app "Suggest an improvement" form (arrives as GitHub issues), box selection to move whole branches, a refresh button that syncs and applies app updates, and offline use. Each tree syncs to the private GitHub repo phillbagnall/family-trees, so the same trees appear on every device. First version is live; next is setting up her devices and trying it with a real book.
+A web app (installable on PC, iPhone and Android) for building family trees of characters in books, made for Phill's step-daughter. Trees are vector-drawn so zoom stays sharp, with photos, dates, notes, groups/houses, custom links, search, spoiler protection, PNG/PDF/SVG export, colour themes with gradient backgrounds (per tree, plus a usual look that syncs across devices), photo cropping, snap-to-grid layout, adding both parents in one step, gender per character, an in-app "Suggest an improvement" form (arrives as GitHub issues), box selection to move whole branches, undo/redo, small markers on cards (gender, died, group), a refresh button that syncs and applies app updates, and offline use. Each tree syncs to the private GitHub repo phillbagnall/family-trees, so the same trees appear on every device. First version is live; next is setting up her devices and trying it with a real book.
 
 ## Next steps
 - [ ] Create a fine-grained GitHub access key for phillbagnall/family-trees (Contents: read and write)
@@ -64,6 +64,10 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
 - 2026-11-24: Selection box now visible while dragging
   - Build: v12 (sw.js VERSION v12) — fix
   - ![Selection box being drawn](docs/visuals/2026-11-24-selection-box.jpg)
+- 2026-11-24: Markers on a card (group letter, died, gender) and a new child placed under its hand-arranged parents
+  - Build: v13 — undo, markers, placement
+  - ![Card markers](docs/visuals/2026-11-24-card-markers.jpg)
+  - ![New child placed under its parents](docs/visuals/2026-11-24-new-child-placed.jpg)
 
 ## Decisions
 - 2026-11-23: Web app (PWA) rather than native apps, so one codebase covers PC, iPhone and Android with no app-store costs
@@ -78,6 +82,9 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
 - 2026-11-24: Existing names are capitalised by the app itself (once per tree, flag meta.namesCapitalised) rather than by editing her repo directly, so it merges safely with edits on her devices
 - 2026-11-24: Centring is a final display step, not a change to the automatic spacing: changing the spacing would have shifted the 7 cards she has dragged out of line with the rest
 - 2026-11-24: Couples have one Relationship choice (Married, Partners, Engaged, Married but separated, Divorced, Widowed, Were partners split up, Affair, Not known) instead of separate type + status, so contradictory mixes can't be picked; duplicate couples are merged when a tree opens
+- 2026-11-24: Once a tree has any hand-placed cards, adding/linking/removing characters keeps every existing card exactly where it is (offsets are re-measured) and new characters are placed beside their family; untouched trees keep flowing automatically
+- 2026-11-24: Undo steps are stored as before/after copies of just the changed entities and re-stamped when applied, so an undo wins over the change it undoes when syncing
+- 2026-11-24: Layout v2 (couples who both have parents in the tree meet in the middle) applies to new trees and to a tree after Tidy up only, so her existing arrangement never shifts
 
 ## Log
 - 2026-11-23: Added to the project dashboard
@@ -93,3 +100,4 @@ A web app (installable on PC, iPhone and Android) for building family trees of c
 - 2026-11-24: Exact centring of children (and married-in partners) when nearly centred; verified on her real tree
 - 2026-11-24: Single Relationship choice for couples; duplicate couples (Princess + Oliver x3 in her tree) merged automatically
 - 2026-11-24: Fixed the selection box not showing while dragging (SVG elements ignore the .hidden property)
+- 2026-11-24: v13: fixed pinch zoom drifting on iPhone (double zoom from Safari gesture events), undo/redo, new characters placed beside their family without moving others, couple lines routed under the row when cards are between them, selected character's lines highlighted, gender/died/group markers on cards, 'Has died' tick box

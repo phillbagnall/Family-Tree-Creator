@@ -46,7 +46,7 @@ function pav(desired, gaps) {
   return out;
 }
 
-export function layout(view, offsets = {}, { snap = true } = {}) {
+export function layout(view, offsets = {}, { snap = true, version = 1 } = {}) {
   const ids = Object.keys(view.people);
   const partnerU = new Map(ids.map((id) => [id, []]));
   const parentU = new Map(ids.map((id) => [id, []]));
@@ -213,6 +213,22 @@ export function layout(view, offsets = {}, { snap = true } = {}) {
         const sp = partnersOf(id).find((q) => want[q] !== undefined && gen[q] === g);
         if (sp) want[id] = want[sp] + (x[id] < x[sp] ? -1 : 1) * step(GAP_PARTNER);
       }
+      // Layout v2: a couple who each come from a family in the tree meet in the middle
+      // instead of each being pulled under their own parents with a long gap between them.
+      if (version >= 2) {
+        const row = rows[g];
+        const done = new Set();
+        for (let i = 0; i + 1 < row.length; i++) {
+          const a = row[i], b = row[i + 1];
+          if (done.has(a) || done.has(b) || want[a] === undefined || want[b] === undefined) continue;
+          if (!partnerU.get(a).some((u) => u.partners.includes(b))) continue;
+          const mid = (want[a] + want[b]) / 2;
+          want[a] = Math.min(want[a], mid - step(GAP_PARTNER) / 2);
+          want[b] = Math.max(want[b], mid + step(GAP_PARTNER) / 2);
+          if (want[b] - want[a] > step(GAP_PARTNER)) { want[a] = mid - step(GAP_PARTNER) / 2; want[b] = mid + step(GAP_PARTNER) / 2; }
+          done.add(a); done.add(b);
+        }
+      }
       packRow(g, want);
     }
   }
@@ -293,11 +309,38 @@ export function layout(view, offsets = {}, { snap = true } = {}) {
     if (ok) for (const k of group) pos[k] = { x: pos[k].x + d, y: pos[k].y };
   }
 
+  // A couple on the same row with other cards between them: their line would run behind
+  // those cards and look as if it joined them too. Route it just under the row instead
+  // (a "bridge"), and hang their children's line from the middle of it.
+  const bridge = {};
+  for (const u of view.unions) {
+    if (u.partners.length !== 2) continue;
+    const [a, b] = u.partners.map((p) => pos[p]);
+    if (Math.abs(a.y - b.y) >= CARD_H) continue;
+    const lo = Math.min(a.x, b.x), hi = Math.max(a.x, b.x);
+    const between = ids.some((o) => !u.partners.includes(o) && pos[o].x > lo && pos[o].x < hi
+      && Math.abs(pos[o].y - (a.y + b.y) / 2) < CARD_H);
+    if (between) bridge[u.id] = { y: Math.max(a.y, b.y) + CARD_H / 2 + 14 };
+  }
+  // Several bridges under the same row get different heights where they overlap.
+  const bridgeList = Object.entries(bridge).map(([id, br]) => {
+    const u = view.unions.find((x) => x.id === id);
+    const xs = u.partners.map((p) => pos[p].x);
+    return { br, lo: Math.min(...xs), hi: Math.max(...xs) };
+  }).sort((p, q) => p.br.y - q.br.y || p.lo - q.lo);
+  const laid = [];
+  for (const b of bridgeList) {
+    let lv = 0;
+    while (laid.some((o) => Math.abs(o.base - b.br.y) < 1 && o.lv === lv && o.lo < b.hi && b.lo < o.hi)) lv++;
+    laid.push({ base: b.br.y, lv, lo: b.lo, hi: b.hi });
+    b.br.y += lv * 12;
+  }
+
   const unionPts = {};
   for (const u of view.unions) {
     if (u.partners.length === 2) {
       const [a, b] = u.partners.map((p) => pos[p]);
-      unionPts[u.id] = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      unionPts[u.id] = bridge[u.id] ? { x: (a.x + b.x) / 2, y: bridge[u.id].y } : { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     } else if (u.partners.length === 1) {
       const a = pos[u.partners[0]];
       unionPts[u.id] = { x: a.x, y: a.y + CARD_H / 2 };
@@ -373,8 +416,8 @@ export function layout(view, offsets = {}, { snap = true } = {}) {
     minY = Math.min(minY, p.y - CARD_H / 2);
     maxY = Math.max(maxY, p.y + CARD_H / 2);
   }
-  for (const p of Object.values(unionPts)) { minY = Math.min(minY, p.y - 10); }
+  for (const p of Object.values(unionPts)) { minY = Math.min(minY, p.y - 10); maxY = Math.max(maxY, p.y + 10); }
   const bounds = ids.length ? { x: minX, y: minY, w: maxX - minX, h: maxY - minY } : { x: -200, y: -100, w: 400, h: 200 };
 
-  return { pos, auto, unionPts, busY, childX, gen, bounds };
+  return { pos, auto, unionPts, busY, childX, gen, bounds, bridge };
 }
